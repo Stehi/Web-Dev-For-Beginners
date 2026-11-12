@@ -297,7 +297,7 @@ const BUILTIN = [
 
 /* ---------- Shramba ---------- */
 const KEY = 'intervalni-casovnik.v1';
-let store = { workouts: [], deleted: [] };
+let store = { workouts: [], deleted: [] }, patched = false;
 try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && Array.isArray(s.workouts)) store = { workouts: s.workouts, deleted: s.deleted || [] }; } catch (e) {}
 (function migrate() {
   const builtinIds = BUILTIN.map(b => b.id), custom = [], kept = {};
@@ -312,13 +312,14 @@ try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && Array.isArray(s.
   const built = [];
   for (const b of BUILTIN) {
     const s = kept[b.id];
-    if (s && s.edited && (s.rev || 0) < b.rev && b.patch) { b.patch(s); s.rev = b.rev; }
+    if (s && s.edited && (s.rev || 0) < b.rev && b.patch) { b.patch(s); s.rev = b.rev; patched = true; }
     if (s && (s.edited || (s.rev || 0) >= b.rev)) built.push(s);
     else if (s || !store.deleted.includes(b.id)) built.push(JSON.parse(JSON.stringify(b)));
   }
   store.workouts = [...built, ...custom];
 })();
 function persist() { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} }
+if (patched) persist(); // popravek se zapiše, da se ob naslednjem odprtju ne ponovi
 
 /* ---------- Pomožne ---------- */
 const $ = id => document.getElementById(id);
