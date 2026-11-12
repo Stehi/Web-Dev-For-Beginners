@@ -164,9 +164,9 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
 <main class="wrap" id="home">
   <div class="head-row">
     <h1>Sweat <span>o'Clock</span></h1>
-    <span class="hint">Različica 18</span>
+    <span class="hint">Različica 19</span>
   </div>
-  <p class="lead">Izberi trening in pritisni Start. Zapiska pri 3, 2, 1 pred začetkom vaje in v zadnjih treh sekundah vsake vaje in odmora. Pri vajah, označenih z ↔, se na polovici oglasi tril za menjavo strani.</p>
+  <p class="lead">Izberi trening in pritisni Start. Pred začetkom vaje zapiska pri 2 in 1, nato dolg pisk za start; ob koncu vaje se oglasi samo pisk za konec. Pri vajah, označenih z ↔, se na polovici oglasi tril za menjavo strani.</p>
   <ul class="list" id="list"></ul>
   <div><button class="btn" id="btn-new" type="button">+ Nov trening</button></div>
   <p class="hint">Med vadbo: <kbd>preslednica</kbd> start / pavza · <kbd>→</kbd> naslednja faza · <kbd>←</kbd> nazaj · <kbd>Esc</kbd> končaj. Telefon naj ostane odklenjen s to aplikacijo na zaslonu, sicer piski utihnejo.</p>
@@ -554,7 +554,7 @@ function renderIdle() {
   $('t-phase').textContent = ''; $('t-ex').textContent = 'Pripravljeno';
   $('t-clock').textContent = fmt(T.total - T.seq[0].dur); $('t-clock').classList.remove('last3');
   $('t-set').textContent = summary(T.w, T.seq); $('t-total').textContent = '';
-  $('t-next').textContent = 'Pritisni Start – odštevanje ' + T.seq[0].dur + ' s, nato 3, 2, 1.';
+  $('t-next').textContent = 'Pritisni Start – odštevanje ' + T.seq[0].dur + ' s, nato 2, 1 in start.';
   $('t-bar').style.width = '0%'; $('t-go').textContent = 'Start';
   T.fitCap = 0; fitClock(fmt(T.total - T.seq[0].dur));
 }
@@ -592,7 +592,8 @@ function paint() {
   const sec = Math.ceil(T.remMs / 1000), cur = T.seq[T.idx];
   if (sec !== T.lastSec) {
     if (T.running && T.lastSec !== null && cur.kind === 'work' && cur.side && cur.dur >= 10 && sec === Math.floor(cur.dur / 2)) halfCue();
-    if (T.running && sec <= 3 && sec >= 1 && (T.lastSec !== null || cur.dur <= 3)) beepShort();
+    // pred začetkom vaje (konec odmora ali priprave) pisk pri 2 in 1; ob koncu vaje ni odštevalnih piskov, samo pisk za konec
+    if (T.running && cur.kind !== 'work' && sec <= 2 && sec >= 1 && (T.lastSec !== null || cur.dur <= 2)) beepShort();
     if (cur.kind === 'work' && cur.dur >= 10 && sec <= Math.floor(cur.dur / 2) && !T.preview) { // napoved naslednje vaje od polovice naprej
       T.preview = true; const nw = nextWork(T.idx + 1); if (nw && nw.names) showRows(nw, 'Sledi');
     }
