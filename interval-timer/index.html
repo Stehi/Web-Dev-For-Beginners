@@ -131,15 +131,12 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
 <main class="wrap" id="home">
   <div class="head-row">
     <h1>Intervalni <span>časovnik</span></h1>
-    <div style="display:flex;flex-wrap:wrap;gap:.5rem">
-      <button class="btn" id="btn-test" type="button">🔊 Preizkusi pisk</button>
-      <button class="btn" id="btn-test-half" type="button">↔ Preizkusi menjavo strani</button>
-    </div>
+    <span class="hint">Različica 8</span>
   </div>
   <p class="lead">Izberi trening in pritisni Start. Zapiska pri 3, 2, 1 pred začetkom vaje in v zadnjih treh sekundah vsake vaje in odmora. Na polovici vsake vaje se oglasi tril za menjavo strani.</p>
   <ul class="list" id="list"></ul>
   <div><button class="btn" id="btn-new" type="button">+ Nov trening</button></div>
-  <p class="hint">Med vadbo: <kbd>preslednica</kbd> start / pavza · <kbd>→</kbd> naslednja faza · <kbd>←</kbd> nazaj · <kbd>Esc</kbd> končaj. Na telefonu izklopi tihi način, da se pisk sliši. Različica 7.</p>
+  <p class="hint">Med vadbo: <kbd>preslednica</kbd> start / pavza · <kbd>→</kbd> naslednja faza · <kbd>←</kbd> nazaj · <kbd>Esc</kbd> končaj. Na telefonu izklopi tihi način, da se pisk sliši.</p>
 </main>
 
 <!-- Urejevalnik -->
@@ -358,8 +355,6 @@ $('ed-form').onsubmit = e => {
   persist(); renderList(); show('home');
 };
 $('btn-new').onclick = () => openEditor(null);
-$('btn-test-half').onclick = () => { audio(); halfCue(); };
-$('btn-test').onclick = () => { beepShort(); setTimeout(beepShort, 1000); setTimeout(beepShort, 2000); setTimeout(beepStart, 3000); };
 
 /* ---------- Časovnik ---------- */
 const T = { w: null, seq: [], idx: -1, running: false, endAt: 0, remMs: 0, lastSec: null, total: 0, iv: null, lock: null };
