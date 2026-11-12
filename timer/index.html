@@ -81,6 +81,9 @@ h1 span { color: var(--work); }
 .workout .info { flex: 1 1 14rem; min-width: 0; }
 .workout h2 { font-family: var(--display); font-weight: 700; font-size: 1.6rem; line-height: 1.1; margin: 0 0 .2rem; text-transform: uppercase; overflow-wrap: anywhere; }
 .workout p { margin: 0; color: var(--muted); font-size: .95rem; font-variant-numeric: tabular-nums; }
+.facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .1rem .9rem; margin: .35rem 0 0; font-size: .95rem; font-variant-numeric: tabular-nums; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; font-weight: 600; }
 .workout .tag { display: inline-block; font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); background: var(--prep); border-radius: .25rem; padding: .05rem .4rem; margin-bottom: .35rem; }
 .workout .actions { display: flex; gap: .5rem; flex-wrap: wrap; }
 .hint { color: var(--muted); font-size: .9rem; margin: 0; }
@@ -184,7 +187,7 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
 <main class="wrap" id="home">
   <div class="head-row">
     <h1>Sweat <span>o'Clock</span></h1>
-    <span class="hint">Različica 19</span>
+    <span class="hint">Različica 20</span>
   </div>
   <p class="lead">Izberi trening in pritisni Start. Pred začetkom vaje zapiska pri 2 in 1, nato dolg pisk za start; ob koncu vaje se oglasi samo pisk za konec. Pri vajah, označenih z ↔, se na polovici oglasi tril za menjavo strani.</p>
   <ul class="list" id="list"></ul>
@@ -359,14 +362,15 @@ function buildSeq(w) {
   return seq;
 }
 const totalOf = seq => seq.reduce((a, p) => a + p.dur, 0);
-function summary(w, seq) {
-  const parts = [];
-  if (w.warm && w.warm.count > 0) parts.push('ogrevanje ' + w.warm.count + ' × ' + w.warm.work + ' s');
-  parts.push((w.swap ? '2 dela × ' : '') + plural(w.rounds, 'krog', 'kroga', 'krogi', 'krogov') + ' × ' + plural(w.steps.length, 'vaja', 'vaji', 'vaje', 'vaj'));
-  if (seq.two) parts.push('2 skupini');
-  parts.push('skupaj ' + fmt(totalOf(seq) - seq[0].dur));
-  return parts.join(' · ');
+function facts(w, seq) { // [oznaka, vrednost]
+  const f = [];
+  if (w.warm && w.warm.count > 0) f.push(['Ogrevanje', w.warm.count + ' × ' + w.warm.work + ' s']);
+  f.push(['Glavni del', (w.swap ? '2 dela × ' : '') + plural(w.rounds, 'krog', 'kroga', 'krogi', 'krogov') + ' × ' + plural(w.steps.length, 'vaja', 'vaji', 'vaje', 'vaj')]);
+  if (seq.two) f.push(['Skupini', '2']);
+  f.push(['Skupaj', fmt(totalOf(seq) - seq[0].dur)]);
+  return f;
 }
+const summary = (w, seq) => facts(w, seq).map(([k, v]) => k === 'Skupini' ? '2 skupini' : k + ' ' + v).join(' · ');
 
 /* ---------- Zvok ---------- */
 let actx = null;
@@ -405,7 +409,8 @@ function renderList() {
   for (const w of store.workouts) {
     const seq = buildSeq(w), li = mk('li', 'workout'), info = mk('div', 'info');
     if (w.example) info.append(mk('span', 'tag', 'Primer'));
-    info.append(mk('h2', '', w.name), mk('p', '', summary(w, seq)));
+    const dl = mk('dl', 'facts'); for (const [k, v] of facts(w, seq)) dl.append(mk('dt', '', k), mk('dd', '', v));
+    info.append(mk('h2', '', w.name), dl);
     const act = mk('div', 'actions');
     const open = mk('button', 'btn primary', 'Odpri'); open.type = 'button'; open.onclick = () => openTimer(w);
     const edit = mk('button', 'btn', 'Uredi'); edit.type = 'button'; edit.onclick = () => openEditor(w);
