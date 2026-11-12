@@ -189,7 +189,16 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
 
 <script>
 /* ---------- Vgrajeni treningi (tukaj se dodajajo shranjeni sistemi) ---------- */
+const KROG = [ { work: 40, rest: 20 }, { work: 40, rest: 20 }, { work: 40, rest: 60 }, { work: 40, rest: 20 }, { work: 40, rest: 40 } ];
 const BUILTIN = [
+  { id: 'vodena-vadba-2-seta', name: 'Vodena vadba', prep: 10,
+    summary: 'ogrevanje 10:00 · 2 seta × 3 krogi × 5 vaj · 40 s vaja',
+    blocks: [
+      { kind: 'work', label: 'Ogrevanje', dur: 600 },
+      { kind: 'rest', label: 'Premor', dur: 90 },
+      { name: 'Set 1', rounds: 3, steps: KROG, after: 240, afterLabel: 'Pavza · menjava rekvizitov' },
+      { name: 'Set 2', rounds: 3, steps: KROG, after: 0 },
+    ] },
   { id: 'primer-krozni', example: true, name: 'Krožni trening', sets: 3, rest: 20, setRest: 60, prep: 10,
     exercises: [
       { name: 'Počepi', work: 40 }, { name: 'Sklece', work: 40 }, { name: 'Izpadni koraki', work: 40 },
@@ -202,8 +211,11 @@ const BUILTIN = [
 const KEY = 'intervalni-casovnik.v1';
 let store = { workouts: [], deleted: [] };
 try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && Array.isArray(s.workouts)) store = { workouts: s.workouts, deleted: s.deleted || [] }; } catch (e) {}
+for (const b of BUILTIN.filter(b => b.blocks).reverse()) { // sestavljeni treningi se vedno berejo iz kode
+  store.workouts = store.workouts.filter(w => w.id !== b.id); store.workouts.unshift(b);
+}
 for (const b of BUILTIN) {
-  if (!store.workouts.some(w => w.id === b.id) && !store.deleted.includes(b.id)) store.workouts.push(JSON.parse(JSON.stringify(b)));
+  if (!b.blocks &&!store.workouts.some(w => w.id === b.id) && !store.deleted.includes(b.id)) store.workouts.push(JSON.parse(JSON.stringify(b)));
 }
 function persist() { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} }
 
@@ -215,9 +227,22 @@ function plural(n, one, two, few, many) { const m = n % 100; return n + ' ' + (m
 
 function buildSeq(w) {
   const seq = [{ kind: 'prep', dur: Math.max(3, w.prep || 10), label: 'Pripravi se' }];
+  if (w.blocks) {
+    for (const b of w.blocks) {
+      if (b.dur) { seq.push({ kind: b.kind, dur: b.dur, label: b.label, setText: '', exText: '' }); continue; }
+      for (let r = 1; r <= b.rounds; r++) b.steps.forEach((st, i) => {
+        const setText = b.name + ' · krog ' + r + ' / ' + b.rounds, exText = 'Vaja ' + (i + 1) + ' / ' + b.steps.length;
+        seq.push({ kind: 'work', dur: st.work, label: st.name || 'Vaja ' + (i + 1), setText, exText });
+        const end = i === b.steps.length - 1 && r === b.rounds, rest = end ? b.after : st.rest;
+        if (rest > 0) seq.push({ kind: 'rest', dur: rest, label: (end && b.afterLabel) || 'Odmor', setText, exText });
+      });
+    }
+    return seq;
+  }
   for (let s = 1; s <= w.sets; s++) {
     w.exercises.forEach((ex, i) => {
-      seq.push({ kind: 'work', dur: ex.work, label: ex.name, set: s, ex: i + 1 });
+      const setText = 'Set ' + s + ' / ' + w.sets, exText = w.exercises.length > 1 ? 'Vaja ' + (i + 1) + ' / ' + w.exercises.length : '';
+      seq.push({ kind: 'work', dur: ex.work, label: ex.name, set: s, ex: i + 1, setText, exText });
       const lastEx = i === w.exercises.length - 1, lastSet = s === w.sets;
       if (!lastEx && w.rest > 0) seq.push({ kind: 'rest', dur: w.rest, label: 'Odmor', set: s, ex: i + 1 });
       if (lastEx && !lastSet && w.setRest > 0) seq.push({ kind: 'rest', dur: w.setRest, label: w.exercises.length > 1 ? 'Odmor med seti' : 'Odmor', set: s, ex: i + 1 });
@@ -260,8 +285,8 @@ function renderList() {
     if (w.example) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = 'Primer'; info.append(t); }
     const h = document.createElement('h2'); h.textContent = w.name;
     const p = document.createElement('p');
-    const works = [...new Set(w.exercises.map(e => e.work))];
-    p.textContent = [
+    const works = w.blocks ? [] : [...new Set(w.exercises.map(e => e.work))];
+    p.textContent = w.blocks ? w.summary + ' · skupaj ' + fmt(totalOf(seq) - seq[0].dur) : [
       plural(w.sets, 'set', 'seta', 'seti', 'setov'),
       plural(w.exercises.length, 'vaja', 'vaji', 'vaje', 'vaj'),
       (works.length === 1 ? works[0] + ' s' : 'različni časi') + ' vaja' + (w.rest ? ' / ' + w.rest + ' s odmor' : ''),
@@ -271,7 +296,7 @@ function renderList() {
     const act = document.createElement('div'); act.className = 'actions';
     const open = document.createElement('button'); open.className = 'btn primary'; open.type = 'button'; open.textContent = 'Odpri'; open.onclick = () => openTimer(w);
     const edit = document.createElement('button'); edit.className = 'btn'; edit.type = 'button'; edit.textContent = 'Uredi'; edit.onclick = () => openEditor(w);
-    act.append(open, edit); li.append(info, act); ul.append(li);
+    act.append(open); if (!w.blocks) act.append(edit); li.append(info, act); ul.append(li);
   }
   if (!store.workouts.length) { const li = document.createElement('li'); li.className = 'hint'; li.textContent = 'Ni shranjenih treningov. Dodaj prvega z gumbom spodaj.'; ul.append(li); }
 }
@@ -339,8 +364,8 @@ function renderIdle() {
   $('t-phase').textContent = 'Pripravljeno';
   $('t-ex').textContent = T.seq[1].label;
   $('t-clock').textContent = fmt(T.total - T.seq[0].dur); $('t-clock').classList.remove('last3');
-  $('t-set').textContent = plural(T.w.sets, 'set', 'seta', 'seti', 'setov');
-  $('t-count').textContent = plural(T.w.exercises.length, 'vaja', 'vaji', 'vaje', 'vaj');
+  $('t-set').textContent = T.w.blocks ? T.w.summary : plural(T.w.sets, 'set', 'seta', 'seti', 'setov');
+  $('t-count').textContent = T.w.blocks ? '' : plural(T.w.exercises.length, 'vaja', 'vaji', 'vaje', 'vaj');
   $('t-total').textContent = '';
   $('t-next').textContent = 'Pritisni Start – odštevanje ' + T.seq[0].dur + ' s, nato 3, 2, 1.';
   $('t-bar').style.width = '0%'; $('t-go').textContent = 'Start';
@@ -362,8 +387,8 @@ function startPhase(i, carryMs = 0, silent = false) {
     $('t-next').textContent = nw ? 'Sledi vaja · ' + nw.dur + ' s' : '';
   }
   const ref = p.kind === 'work' ? p : nw;
-  $('t-set').textContent = ref ? 'Set ' + ref.set + ' / ' + T.w.sets : '';
-  $('t-count').textContent = ref && T.w.exercises.length > 1 ? 'Vaja ' + ref.ex + ' / ' + T.w.exercises.length : '';
+  $('t-set').textContent = ref ? ref.setText : '';
+  $('t-count').textContent = ref ? ref.exText : '';
   tick();
 }
 function tick() {
