@@ -1,0 +1,447 @@
+<title>Intervalni Časovnik</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Big+Shoulders+Display:wght@700;900&display=swap">
+<style>
+/* Layout: seznam treningov kot delovni list; časovnik je cel zaslon, ki ga barva faze zapolni do roba, da se vidi čez telovadnico. */
+:root {
+  color-scheme: dark;
+  --ink: #0f1420;        /* ozadje in besedilo na barvnih fazah */
+  --panel: #19202f;
+  --line: #2c3548;
+  --paper: #eef1f6;
+  --muted: #98a2b8;
+  --work: #ff6b1a;       /* vaja */
+  --rest: #35c2cc;       /* odmor */
+  --prep: #ffd338;       /* priprava */
+  --danger: #ff5a6a;
+  --display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+html, body { height: 100%; }
+body {
+  background: var(--ink); color: var(--paper);
+  font-family: var(--body); font-size: 1rem; line-height: 1.45;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; border: 0; background: none; }
+:focus-visible { outline: 3px solid var(--paper); outline-offset: 2px; }
+
+.wrap {
+  max-width: 44rem; margin: 0 auto;
+  padding-block: 1.5rem 3rem;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 1.25rem;
+}
+h1 {
+  font-family: var(--display); font-weight: 900; font-size: 2.6rem; line-height: 1;
+  text-transform: uppercase; letter-spacing: .01em; margin: 0; text-wrap: balance;
+}
+h1 span { color: var(--work); }
+.lead { color: var(--muted); margin: 0; max-width: 60ch; }
+.head-row { display: flex; flex-wrap: wrap; gap: .75rem 1rem; align-items: end; justify-content: space-between; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+  min-height: 2.75rem; padding: 0 1.1rem; border-radius: .5rem;
+  font-weight: 600; border: 1px solid var(--line); background: var(--panel);
+}
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--work); border-color: var(--work); color: var(--ink); font-weight: 700; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.danger { color: var(--danger); }
+.btn.small { min-height: 2.25rem; padding: 0 .75rem; font-size: .9rem; }
+
+/* Seznam treningov */
+.list { display: flex; flex-direction: column; gap: .75rem; list-style: none; margin: 0; padding: 0; }
+.workout {
+  background: var(--panel); border: 1px solid var(--line); border-radius: .75rem;
+  padding: 1rem; display: flex; flex-wrap: wrap; gap: .75rem 1rem; align-items: center;
+}
+.workout .info { flex: 1 1 14rem; min-width: 0; }
+.workout h2 { font-family: var(--display); font-weight: 700; font-size: 1.6rem; line-height: 1.1; margin: 0 0 .2rem; text-transform: uppercase; overflow-wrap: anywhere; }
+.workout p { margin: 0; color: var(--muted); font-size: .95rem; font-variant-numeric: tabular-nums; }
+.workout .tag { display: inline-block; font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); background: var(--prep); border-radius: .25rem; padding: .05rem .4rem; margin-bottom: .35rem; }
+.workout .actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+.hint { color: var(--muted); font-size: .9rem; margin: 0; }
+kbd { font-family: var(--body); font-size: .8rem; border: 1px solid var(--line); border-radius: .3rem; padding: 0 .35rem; background: var(--panel); }
+
+/* Urejevalnik */
+form { display: flex; flex-direction: column; gap: 1.25rem; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: .75rem; }
+label { display: flex; flex-direction: column; gap: .3rem; font-size: .8rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+input {
+  min-height: 2.75rem; padding: 0 .75rem; border-radius: .5rem; min-width: 0; width: 100%; box-sizing: border-box;
+  background: var(--ink); border: 1px solid var(--line); color: var(--paper); font-size: 1rem; font-weight: 500;
+}
+input:focus { border-color: var(--work); outline: none; }
+fieldset { border: 1px solid var(--line); border-radius: .75rem; padding: 1rem; margin: 0; display: flex; flex-direction: column; gap: .6rem; }
+legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-transform: uppercase; padding: 0 .4rem; }
+.ex-row { display: grid; grid-template-columns: 1.6rem minmax(0, 1fr) 5.5rem 2.75rem; gap: .5rem; align-items: center; }
+.ex-row .n { color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+.ex-row .del { min-height: 2.75rem; border-radius: .5rem; border: 1px solid var(--line); color: var(--muted); font-size: 1.1rem; }
+.ex-row .del:hover { color: var(--danger); border-color: var(--danger); }
+.ex-head { font-size: .75rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.form-actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+.form-actions .spacer { flex: 1; }
+.error { color: var(--danger); margin: 0; font-weight: 600; }
+
+/* Časovnik */
+#timer {
+  --phase: var(--panel); --on: var(--paper);
+  position: fixed; inset: 0; z-index: 20;
+  background: var(--phase); color: var(--on);
+  transition: background-color .25s;
+  display: flex; flex-direction: column;
+  padding-top: max(.75rem, env(safe-area-inset-top, 0px));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+#timer[data-kind="work"] { --phase: var(--work); --on: var(--ink); }
+#timer[data-kind="rest"] { --phase: var(--rest); --on: var(--ink); }
+#timer[data-kind="prep"] { --phase: var(--prep); --on: var(--ink); }
+#timer[data-kind="done"] { --phase: var(--paper); --on: var(--ink); }
+#timer.paused .clock { opacity: .45; }
+.t-top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.t-name { font-weight: 700; text-transform: uppercase; letter-spacing: .06em; font-size: .9rem; min-width: 0; overflow-wrap: anywhere; }
+.t-btn { min-height: 2.5rem; padding: 0 .9rem; border-radius: .5rem; font-weight: 700; border: 2px solid currentColor; }
+.t-main { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.phase { font-weight: 700; letter-spacing: .2em; text-transform: uppercase; font-size: clamp(1rem, 3.5vw, 1.6rem); }
+.exercise { font-family: var(--display); font-weight: 900; text-transform: uppercase; line-height: 1; font-size: clamp(2rem, 9vw, 5.5rem); text-wrap: balance; overflow-wrap: anywhere; margin-top: .15em; }
+.clock { font-family: var(--display); font-weight: 900; line-height: .9; font-size: min(46vw, 46vh); font-variant-numeric: tabular-nums; letter-spacing: -.01em; transition: opacity .2s; }
+.clock.last3 { animation: pulse 1s ease-out infinite; }
+@keyframes pulse { 0% { transform: scale(1.08); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .clock.last3 { animation: none; } #timer { transition: none; } }
+.meta { display: flex; flex-wrap: wrap; justify-content: center; gap: .25rem 1.5rem; font-weight: 700; font-size: clamp(1rem, 3.2vw, 1.5rem); font-variant-numeric: tabular-nums; }
+.next { font-weight: 500; font-size: clamp(.95rem, 2.8vw, 1.3rem); margin-top: .4rem; overflow-wrap: anywhere; }
+.bar { height: .5rem; border-radius: .25rem; background: color-mix(in srgb, var(--on) 20%, transparent); overflow: hidden; margin: .9rem 0; }
+.bar i { display: block; height: 100%; width: 0; background: var(--on); }
+.t-controls { display: flex; align-items: center; justify-content: center; gap: .75rem; }
+.t-controls .t-btn { min-height: 3.5rem; min-width: 3.5rem; font-size: 1.3rem; }
+.t-controls .go {
+  flex: 0 1 16rem; min-height: 4.5rem; border-radius: .75rem; border: 0;
+  background: var(--on); color: var(--phase);
+  font-family: var(--display); font-weight: 900; font-size: 2.2rem; text-transform: uppercase; letter-spacing: .04em;
+}
+#timer[data-kind="idle"] .go { background: var(--work); color: var(--ink); }
+</style>
+
+<!-- Seznam treningov -->
+<main class="wrap" id="home">
+  <div class="head-row">
+    <h1>Intervalni <span>časovnik</span></h1>
+    <button class="btn" id="btn-test" type="button">🔊 Preizkusi pisk</button>
+  </div>
+  <p class="lead">Izberi trening in pritisni Start. Zapiska pri 3, 2, 1 pred začetkom vaje in v zadnjih treh sekundah vsake vaje in odmora.</p>
+  <ul class="list" id="list"></ul>
+  <div><button class="btn" id="btn-new" type="button">+ Nov trening</button></div>
+  <p class="hint">Med vadbo: <kbd>preslednica</kbd> start / pavza · <kbd>→</kbd> naslednja faza · <kbd>←</kbd> nazaj · <kbd>Esc</kbd> končaj. Na telefonu izklopi tihi način, da se pisk sliši.</p>
+</main>
+
+<!-- Urejevalnik -->
+<main class="wrap" id="editor" hidden>
+  <h1 id="ed-title">Uredi trening</h1>
+  <form id="ed-form" novalidate>
+    <label for="ed-name">Ime treninga<input id="ed-name" type="text" maxlength="60" autocomplete="off"></label>
+    <div class="grid">
+      <label for="ed-sets">Število setov<input id="ed-sets" type="number" inputmode="numeric" min="1" max="99"></label>
+      <label for="ed-rest">Odmor med vajami (s)<input id="ed-rest" type="number" inputmode="numeric" min="0" max="3600"></label>
+      <label for="ed-setrest">Odmor med seti (s)<input id="ed-setrest" type="number" inputmode="numeric" min="0" max="3600"></label>
+      <label for="ed-prep">Priprava pred startom (s)<input id="ed-prep" type="number" inputmode="numeric" min="3" max="600"></label>
+    </div>
+    <fieldset>
+      <legend>Vaje v enem setu</legend>
+      <div class="ex-row ex-head"><span></span><span>Vaja</span><span>Čas (s)</span><span></span></div>
+      <div id="ed-ex" style="display:flex;flex-direction:column;gap:.5rem"></div>
+      <div><button class="btn small" id="ed-add" type="button">+ Dodaj vajo</button></div>
+    </fieldset>
+    <p class="error" id="ed-error" hidden></p>
+    <div class="form-actions">
+      <button class="btn primary" type="submit">Shrani</button>
+      <button class="btn" id="ed-cancel" type="button">Prekliči</button>
+      <span class="spacer"></span>
+      <button class="btn danger" id="ed-delete" type="button">Izbriši</button>
+    </div>
+  </form>
+</main>
+
+<!-- Časovnik -->
+<section id="timer" data-kind="idle" hidden>
+  <div class="t-top">
+    <div class="t-name" id="t-name"></div>
+    <button class="t-btn" id="t-exit" type="button">✕ Končaj</button>
+  </div>
+  <div class="t-main">
+    <div class="phase" id="t-phase"></div>
+    <div class="exercise" id="t-ex"></div>
+    <div class="clock" id="t-clock"></div>
+    <div class="meta"><span id="t-set"></span><span id="t-count"></span><span id="t-total"></span></div>
+    <div class="next" id="t-next"></div>
+  </div>
+  <div class="bar"><i id="t-bar"></i></div>
+  <div class="t-controls">
+    <button class="t-btn" id="t-prev" type="button" aria-label="Prejšnja faza">⏮</button>
+    <button class="go" id="t-go" type="button">Start</button>
+    <button class="t-btn" id="t-skip" type="button" aria-label="Naslednja faza">⏭</button>
+  </div>
+</section>
+
+<script>
+/* ---------- Vgrajeni treningi (tukaj se dodajajo shranjeni sistemi) ---------- */
+const BUILTIN = [
+  { id: 'primer-krozni', example: true, name: 'Krožni trening', sets: 3, rest: 20, setRest: 60, prep: 10,
+    exercises: [
+      { name: 'Počepi', work: 40 }, { name: 'Sklece', work: 40 }, { name: 'Izpadni koraki', work: 40 },
+      { name: 'Plank', work: 40 }, { name: 'Poskoki', work: 40 }, { name: 'Trebušnjaki', work: 40 } ] },
+  { id: 'primer-tabata', example: true, name: 'Tabata 20 / 10', sets: 8, rest: 0, setRest: 10, prep: 10,
+    exercises: [ { name: 'Burpees', work: 20 } ] },
+];
+
+/* ---------- Shramba ---------- */
+const KEY = 'intervalni-casovnik.v1';
+let store = { workouts: [], deleted: [] };
+try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && Array.isArray(s.workouts)) store = { workouts: s.workouts, deleted: s.deleted || [] }; } catch (e) {}
+for (const b of BUILTIN) {
+  if (!store.workouts.some(w => w.id === b.id) && !store.deleted.includes(b.id)) store.workouts.push(JSON.parse(JSON.stringify(b)));
+}
+function persist() { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} }
+
+/* ---------- Pomožne ---------- */
+const $ = id => document.getElementById(id);
+const fmt = s => { s = Math.max(0, Math.round(s)); const m = Math.floor(s / 60), r = s % 60; return m + ':' + String(r).padStart(2, '0'); };
+const clockFmt = s => s >= 60 ? fmt(s) : String(s);
+function plural(n, one, two, few, many) { const m = n % 100; return n + ' ' + (m === 1 ? one : m === 2 ? two : (m === 3 || m === 4) ? few : many); }
+
+function buildSeq(w) {
+  const seq = [{ kind: 'prep', dur: Math.max(3, w.prep || 10), label: 'Pripravi se' }];
+  for (let s = 1; s <= w.sets; s++) {
+    w.exercises.forEach((ex, i) => {
+      seq.push({ kind: 'work', dur: ex.work, label: ex.name, set: s, ex: i + 1 });
+      const lastEx = i === w.exercises.length - 1, lastSet = s === w.sets;
+      if (!lastEx && w.rest > 0) seq.push({ kind: 'rest', dur: w.rest, label: 'Odmor', set: s, ex: i + 1 });
+      if (lastEx && !lastSet && w.setRest > 0) seq.push({ kind: 'rest', dur: w.setRest, label: w.exercises.length > 1 ? 'Odmor med seti' : 'Odmor', set: s, ex: i + 1 });
+    });
+  }
+  return seq;
+}
+const totalOf = seq => seq.reduce((a, p) => a + p.dur, 0);
+
+/* ---------- Zvok ---------- */
+let actx = null;
+function audio() {
+  if (!actx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) actx = new AC(); }
+  if (actx && actx.state === 'suspended') actx.resume();
+  return actx;
+}
+function tone(freq, dur, delay = 0, vol = 0.5) {
+  const a = audio(); if (!a) return;
+  const t = a.currentTime + delay, o = a.createOscillator(), g = a.createGain();
+  o.type = 'square'; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+  g.gain.setValueAtTime(vol, t + dur - 0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.02);
+}
+const beepShort = () => tone(880, 0.16);            // 3 … 2 … 1
+const beepStart = () => tone(1320, 0.7);            // START vaje
+const beepRest = () => { tone(660, 0.25); tone(440, 0.45, 0.25); }; // konec vaje, začetek odmora
+const beepDone = () => { tone(660, 0.2); tone(880, 0.2, 0.22); tone(1320, 0.7, 0.44); };
+
+/* ---------- Pogledi ---------- */
+function show(view) { for (const v of ['home', 'editor', 'timer']) $(v).hidden = v !== view; window.scrollTo(0, 0); }
+
+function renderList() {
+  const ul = $('list'); ul.textContent = '';
+  for (const w of store.workouts) {
+    const seq = buildSeq(w), li = document.createElement('li'); li.className = 'workout';
+    const info = document.createElement('div'); info.className = 'info';
+    if (w.example) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = 'Primer'; info.append(t); }
+    const h = document.createElement('h2'); h.textContent = w.name;
+    const p = document.createElement('p');
+    const works = [...new Set(w.exercises.map(e => e.work))];
+    p.textContent = [
+      plural(w.sets, 'set', 'seta', 'seti', 'setov'),
+      plural(w.exercises.length, 'vaja', 'vaji', 'vaje', 'vaj'),
+      (works.length === 1 ? works[0] + ' s' : 'različni časi') + ' vaja' + (w.rest ? ' / ' + w.rest + ' s odmor' : ''),
+      'skupaj ' + fmt(totalOf(seq) - seq[0].dur),
+    ].join(' · ');
+    info.append(h, p);
+    const act = document.createElement('div'); act.className = 'actions';
+    const open = document.createElement('button'); open.className = 'btn primary'; open.type = 'button'; open.textContent = 'Odpri'; open.onclick = () => openTimer(w);
+    const edit = document.createElement('button'); edit.className = 'btn'; edit.type = 'button'; edit.textContent = 'Uredi'; edit.onclick = () => openEditor(w);
+    act.append(open, edit); li.append(info, act); ul.append(li);
+  }
+  if (!store.workouts.length) { const li = document.createElement('li'); li.className = 'hint'; li.textContent = 'Ni shranjenih treningov. Dodaj prvega z gumbom spodaj.'; ul.append(li); }
+}
+
+/* ---------- Urejevalnik ---------- */
+let editing = null;
+function exRow(ex) {
+  const row = document.createElement('div'); row.className = 'ex-row';
+  const n = document.createElement('span'); n.className = 'n';
+  const name = document.createElement('input'); name.type = 'text'; name.maxLength = 40; name.value = ex.name; name.setAttribute('aria-label', 'Ime vaje'); name.className = 'ex-name';
+  const sec = document.createElement('input'); sec.type = 'number'; sec.inputMode = 'numeric'; sec.min = 1; sec.max = 3600; sec.value = ex.work; sec.setAttribute('aria-label', 'Čas vaje v sekundah'); sec.className = 'ex-sec';
+  const del = document.createElement('button'); del.type = 'button'; del.className = 'del'; del.textContent = '✕'; del.setAttribute('aria-label', 'Odstrani vajo');
+  del.onclick = () => { row.remove(); renumber(); };
+  row.append(n, name, sec, del); return row;
+}
+function renumber() { [...$('ed-ex').children].forEach((r, i) => r.querySelector('.n').textContent = i + 1); }
+function openEditor(w) {
+  editing = w || null;
+  const d = w || { name: '', sets: 3, rest: 20, setRest: 60, prep: 10, exercises: [{ name: '', work: 40 }] };
+  $('ed-title').textContent = w ? 'Uredi trening' : 'Nov trening';
+  $('ed-name').value = d.name; $('ed-sets').value = d.sets; $('ed-rest').value = d.rest; $('ed-setrest').value = d.setRest; $('ed-prep').value = d.prep || 10;
+  const box = $('ed-ex'); box.textContent = ''; d.exercises.forEach(e => box.append(exRow(e))); renumber();
+  $('ed-error').hidden = true; $('ed-delete').hidden = !w; $('ed-delete').textContent = 'Izbriši'; delArmed = false;
+  show('editor');
+}
+$('ed-add').onclick = () => { const rows = $('ed-ex').children, last = rows[rows.length - 1]; const r = exRow({ name: '', work: last ? last.querySelector('.ex-sec').value : 40 }); $('ed-ex').append(r); renumber(); r.querySelector('.ex-name').focus(); };
+$('ed-cancel').onclick = () => show('home');
+let delArmed = false;
+$('ed-delete').onclick = () => {
+  if (!delArmed) { delArmed = true; $('ed-delete').textContent = 'Res izbriši?'; return; }
+  store.workouts = store.workouts.filter(w => w !== editing); store.deleted.push(editing.id);
+  persist(); renderList(); show('home');
+};
+$('ed-form').onsubmit = e => {
+  e.preventDefault();
+  const int = (id, min) => { const v = parseInt($(id).value, 10); return Number.isFinite(v) && v >= min ? v : null; };
+  const name = $('ed-name').value.trim(), sets = int('ed-sets', 1), rest = int('ed-rest', 0), setRest = int('ed-setrest', 0), prep = int('ed-prep', 3);
+  const exercises = [...$('ed-ex').children].map((r, i) => ({ name: r.querySelector('.ex-name').value.trim() || 'Vaja ' + (i + 1), work: parseInt(r.querySelector('.ex-sec').value, 10) }));
+  let err = '';
+  if (!name) err = 'Vpiši ime treninga.';
+  else if (sets === null || rest === null || setRest === null) err = 'Seti in odmori morajo biti cela števila (seti vsaj 1).';
+  else if (prep === null) err = 'Priprava mora trajati vsaj 3 sekunde, da se sliši 3, 2, 1.';
+  else if (!exercises.length) err = 'Dodaj vsaj eno vajo.';
+  else if (exercises.some(x => !(x.work >= 1))) err = 'Vsaka vaja potrebuje čas vsaj 1 sekundo.';
+  if (err) { $('ed-error').textContent = err; $('ed-error').hidden = false; return; }
+  const data = { name, sets, rest, setRest, prep, exercises };
+  if (editing) { Object.assign(editing, data); delete editing.example; }
+  else store.workouts.push({ id: 'w' + Date.now().toString(36), ...data });
+  persist(); renderList(); show('home');
+};
+$('btn-new').onclick = () => openEditor(null);
+$('btn-test').onclick = () => { beepShort(); setTimeout(beepShort, 1000); setTimeout(beepShort, 2000); setTimeout(beepStart, 3000); };
+
+/* ---------- Časovnik ---------- */
+const T = { w: null, seq: [], idx: -1, running: false, endAt: 0, remMs: 0, lastSec: null, total: 0, iv: null, lock: null };
+const el = $('timer');
+
+function openTimer(w) {
+  T.w = w; T.seq = buildSeq(w); T.total = totalOf(T.seq); T.idx = -1; T.running = false; T.lastSec = null;
+  $('t-name').textContent = w.name;
+  show('timer'); renderIdle(); $('t-go').focus();
+}
+function renderIdle() {
+  el.dataset.kind = 'idle'; el.classList.remove('paused');
+  $('t-phase').textContent = 'Pripravljeno';
+  $('t-ex').textContent = T.seq[1].label;
+  $('t-clock').textContent = fmt(T.total - T.seq[0].dur); $('t-clock').classList.remove('last3');
+  $('t-set').textContent = plural(T.w.sets, 'set', 'seta', 'seti', 'setov');
+  $('t-count').textContent = plural(T.w.exercises.length, 'vaja', 'vaji', 'vaje', 'vaj');
+  $('t-total').textContent = '';
+  $('t-next').textContent = 'Pritisni Start – odštevanje ' + T.seq[0].dur + ' s, nato 3, 2, 1.';
+  $('t-bar').style.width = '0%'; $('t-go').textContent = 'Start';
+}
+function nextWork(from) { for (let i = from; i < T.seq.length; i++) if (T.seq[i].kind === 'work') return T.seq[i]; return null; }
+
+function startPhase(i, carryMs = 0, silent = false) {
+  T.idx = i; const p = T.seq[i];
+  T.remMs = p.dur * 1000 - carryMs; T.endAt = performance.now() + T.remMs; T.lastSec = null;
+  if (!silent) { if (p.kind === 'work') beepStart(); else if (p.kind === 'rest') beepRest(); }
+  el.dataset.kind = p.kind;
+  const nw = nextWork(i + 1);
+  if (p.kind === 'work') {
+    $('t-phase').textContent = 'Vaja'; $('t-ex').textContent = p.label;
+    const nx = T.seq[i + 1];
+    $('t-next').textContent = !nx ? 'Zadnja vaja' : nx.kind === 'rest' ? 'Sledi: ' + nx.label.toLowerCase() + ' ' + nx.dur + ' s' : 'Sledi: ' + nx.label + ' ' + nx.dur + ' s';
+  } else {
+    $('t-phase').textContent = p.label; $('t-ex').textContent = nw ? nw.label : '';
+    $('t-next').textContent = nw ? 'Sledi vaja · ' + nw.dur + ' s' : '';
+  }
+  const ref = p.kind === 'work' ? p : nw;
+  $('t-set').textContent = ref ? 'Set ' + ref.set + ' / ' + T.w.sets : '';
+  $('t-count').textContent = ref && T.w.exercises.length > 1 ? 'Vaja ' + ref.ex + ' / ' + T.w.exercises.length : '';
+  tick();
+}
+function tick() {
+  if (!T.running) return;
+  const rem = T.endAt - performance.now();
+  if (rem <= 0) {
+    if (T.idx + 1 < T.seq.length) startPhase(T.idx + 1, Math.min(-rem, 400)); else finish();
+    return;
+  }
+  T.remMs = rem; paint();
+}
+function paint() {
+  const sec = Math.ceil(T.remMs / 1000);
+  if (sec !== T.lastSec) {
+    if (T.running && T.lastSec !== null && sec <= 3 && sec >= 1) beepShort();
+    else if (T.running && T.lastSec === null && sec <= 3 && sec >= 1 && T.seq[T.idx].dur <= 3) beepShort();
+    T.lastSec = sec;
+    $('t-clock').textContent = clockFmt(sec);
+    $('t-clock').classList.toggle('last3', sec <= 3 && T.running);
+    let left = T.remMs / 1000; for (let i = T.idx + 1; i < T.seq.length; i++) left += T.seq[i].dur;
+    $('t-total').textContent = 'Še ' + fmt(left);
+  }
+  let done = 0; for (let i = 0; i < T.idx; i++) done += T.seq[i].dur;
+  done += T.seq[T.idx].dur - T.remMs / 1000;
+  $('t-bar').style.width = (100 * done / T.total).toFixed(2) + '%';
+}
+function run() {
+  audio(); T.running = true; el.classList.remove('paused'); $('t-go').textContent = 'Pavza';
+  clearInterval(T.iv); T.iv = setInterval(tick, 100); wake(true);
+}
+function pause() {
+  T.running = false; T.remMs = Math.max(0, T.endAt - performance.now());
+  clearInterval(T.iv); el.classList.add('paused'); $('t-go').textContent = 'Nadaljuj';
+  $('t-clock').classList.remove('last3'); wake(false);
+}
+function finish() {
+  T.running = false; clearInterval(T.iv); T.idx = T.seq.length; beepDone(); wake(false);
+  el.dataset.kind = 'done'; el.classList.remove('paused');
+  $('t-phase').textContent = 'Konec'; $('t-ex').textContent = 'Odlično opravljeno!';
+  $('t-clock').textContent = '✓'; $('t-clock').classList.remove('last3');
+  $('t-set').textContent = ''; $('t-count').textContent = ''; $('t-total').textContent = 'Skupaj ' + fmt(T.total - T.seq[0].dur);
+  $('t-next').textContent = ''; $('t-bar').style.width = '100%'; $('t-go').textContent = 'Ponovi';
+}
+function toggle() {
+  if (T.idx < 0) { run(); startPhase(0); }
+  else if (T.idx >= T.seq.length) { T.idx = -1; renderIdle(); }
+  else if (T.running) pause();
+  else { T.endAt = performance.now() + T.remMs; run(); }
+}
+function jump(d) {
+  if (T.idx < 0 || T.idx >= T.seq.length) return;
+  let i = T.idx + d;
+  if (d < 0 && T.seq[T.idx].dur * 1000 - T.remMs > 2000) i = T.idx; // najprej ponovi trenutno fazo
+  if (i < 0) i = 0;
+  if (i >= T.seq.length) { finish(); return; }
+  const was = T.running; T.running = true; startPhase(i, 0, !was); T.running = was;
+  if (!was) { T.remMs = T.seq[i].dur * 1000; T.lastSec = null; paint(); }
+}
+function exitTimer() { T.running = false; clearInterval(T.iv); wake(false); show('home'); }
+async function wake(on) {
+  try {
+    if (on && navigator.wakeLock && !T.lock) { T.lock = await navigator.wakeLock.request('screen'); T.lock.addEventListener('release', () => { T.lock = null; }); }
+    else if (!on && T.lock) { await T.lock.release(); T.lock = null; }
+  } catch (e) { T.lock = null; }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden && T.running) { wake(true); tick(); } });
+
+$('t-go').onclick = toggle;
+$('t-skip').onclick = () => jump(1);
+$('t-prev').onclick = () => jump(-1);
+$('t-exit').onclick = exitTimer;
+document.addEventListener('keydown', e => {
+  if (el.hidden) return;
+  if (e.code === 'Space' || e.key === 'Enter') { if (e.target.tagName === 'BUTTON' && e.target.id !== 't-go') return; e.preventDefault(); toggle(); }
+  else if (e.key === 'ArrowRight') jump(1);
+  else if (e.key === 'ArrowLeft') jump(-1);
+  else if (e.key === 'Escape') exitTimer();
+});
+
+renderList();
+</script>
