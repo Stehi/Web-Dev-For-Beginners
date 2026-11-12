@@ -187,7 +187,7 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
 <main class="wrap" id="home">
   <div class="head-row">
     <h1>Sweat <span>o'Clock</span></h1>
-    <span class="hint">Različica 15</span>
+    <span class="hint">Različica 16</span>
   </div>
   <p class="lead">Izberi trening in pritisni Start. Zapiska pri 3, 2, 1 pred začetkom vaje in v zadnjih treh sekundah vsake vaje in odmora. Pri vajah, označenih z ↔, se na polovici oglasi tril za menjavo strani.</p>
   <ul class="list" id="list"></ul>
@@ -276,14 +276,16 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
    Ko se vgrajeni trening spremeni v kodi, povečaj rev – naprave, kjer ga uporabnik ni sam urejal, dobijo novo različico. */
 const step = (a, b, work, rest, sideA = false, sideB = false) => ({ a, b, work, rest, sideA, sideB });
 const BUILTIN = [
-  { id: 'vodena-vadba-2-seta', rev: 2, name: 'Vodena vadba', prep: 10,
-    warm: { count: 19, work: 30, side: true }, warmRest: 90, rounds: 3, swap: true, pause: 240,
+  { id: 'vodena-vadba-2-seta', rev: 3, name: 'Vodena vadba', prep: 10,
+    // popravek za naprave, kjer je uporabnik trening že sam urejal: spremeni samo ti dve številki
+    patch: w => { if (w.steps.length === 5) w.steps[4].rest = 60; w.pause = 140; },
+    warm: { count: 19, work: 30, side: true }, warmRest: 90, rounds: 3, swap: true, pause: 140,
     steps: [
       step('Mrtvi dvig s kettlebellom ob eni strani', 'Front počep s štango', 40, 20, true),
       step('Kroženje KB okoli glave na kolenih', 'Pokončno veslanje s štango', 40, 20),
       step('Mountain climber z dlanmi na medicinki', 'Izmenični thruster z ročkama', 40, 40),
       step('Triceps izteg s kettlebellom za glavo', 'Ozki potisk z ročkama leže na tleh', 40, 20),
-      step('Goblet počep s kettlebellom z 2s zadržkom spodaj', 'Hollow hold', 40, 40),
+      step('Goblet počep s kettlebellom z 2s zadržkom spodaj', 'Hollow hold', 40, 60),
     ] },
   { id: 'primer-krozni', rev: 2, example: true, name: 'Krožni trening', prep: 10,
     warm: { count: 0, work: 30, side: false }, warmRest: 0, rounds: 3, swap: false, pause: 0,
@@ -310,6 +312,7 @@ try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && Array.isArray(s.
   const built = [];
   for (const b of BUILTIN) {
     const s = kept[b.id];
+    if (s && s.edited && (s.rev || 0) < b.rev && b.patch) { b.patch(s); s.rev = b.rev; }
     if (s && (s.edited || (s.rev || 0) >= b.rev)) built.push(s);
     else if (s || !store.deleted.includes(b.id)) built.push(JSON.parse(JSON.stringify(b)));
   }
