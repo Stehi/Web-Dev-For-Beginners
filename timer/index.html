@@ -129,12 +129,11 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
 #timer[data-kind="prep"] { --phase: var(--prep); --on: var(--ink); }
 #timer[data-kind="done"] { --phase: var(--paper); --on: var(--ink); }
 #timer.paused .clock { opacity: .45; }
-#timer.locked .lockable { opacity: .28; pointer-events: none; }
 .t-top { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
 .t-name { font-weight: 700; text-transform: uppercase; letter-spacing: .06em; font-size: .9rem; min-width: 0; overflow-wrap: anywhere; flex: 1; }
 .t-btn { min-height: 2.5rem; padding: 0 .8rem; border-radius: .5rem; font-weight: 700; border: 2px solid currentColor; white-space: nowrap; }
-#t-lock { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
-#timer.locked #t-lock { background: var(--on); color: var(--phase); border-color: var(--on); }
+.t-exit { min-height: 2.25rem; padding: 0 .4rem; font-size: .8rem; font-weight: 600; opacity: .55; white-space: nowrap; }
+.t-exit.armed { opacity: 1; font-weight: 700; border: 2px solid currentColor; border-radius: .5rem; padding: 0 .7rem; }
 .t-main { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
 .phase { font-weight: 700; letter-spacing: .2em; text-transform: uppercase; font-size: clamp(1rem, 3.5vw, 1.6rem); min-height: 1.5em; }
 .exercise { font-family: var(--display); font-weight: 900; text-transform: uppercase; line-height: 1; font-size: clamp(2rem, 9vw, 5.5rem); text-wrap: balance; overflow-wrap: anywhere; }
@@ -183,7 +182,7 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
 <main class="wrap" id="home">
   <div class="head-row">
     <h1>Sweat <span>o'Clock</span></h1>
-    <span class="hint">Različica 13</span>
+    <span class="hint">Različica 14</span>
   </div>
   <p class="lead">Izberi trening in pritisni Start. Zapiska pri 3, 2, 1 pred začetkom vaje in v zadnjih treh sekundah vsake vaje in odmora. Pri vajah, označenih z ↔, se na polovici oglasi tril za menjavo strani.</p>
   <ul class="list" id="list"></ul>
@@ -241,8 +240,7 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
 <section id="timer" data-kind="idle" hidden>
   <div class="t-top">
     <div class="t-name" id="t-name"></div>
-    <button class="t-btn" id="t-lock" type="button">🔓 Zakleni</button>
-    <button class="t-btn lockable" id="t-exit" type="button">✕ Končaj</button>
+    <button class="t-exit" id="t-exit" type="button">✕ Končaj</button>
   </div>
   <div class="toast" id="t-toast" hidden></div>
   <div class="t-main">
@@ -256,9 +254,9 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
   </div>
   <div class="bar"><i id="t-bar"></i></div>
   <div class="t-controls">
-    <button class="t-btn lockable" id="t-prev" type="button" aria-label="Prejšnja faza">⏮</button>
-    <button class="go lockable" id="t-go" type="button">Start</button>
-    <button class="t-btn lockable" id="t-skip" type="button" aria-label="Naslednja faza">⏭</button>
+    <button class="t-btn" id="t-prev" type="button" aria-label="Prejšnja faza">⏮</button>
+    <button class="go" id="t-go" type="button">Start</button>
+    <button class="t-btn" id="t-skip" type="button" aria-label="Naslednja faza">⏭</button>
   </div>
 </section>
 
@@ -322,7 +320,7 @@ function buildSeq(w) {
   const two = w.steps.some(s => (s.b || '').trim());
   seq.two = two;
   const wc = w.warm ? w.warm.count : 0;
-  for (let i = 0; i < wc; i++) seq.push({ kind: 'work', dur: w.warm.work, title: 'Ogrevanje', side: !!w.warm.side, setText: 'Ogrevanje', segN: wc, segI: i, rN: 0, rI: 0 });
+  for (let i = 0; i < wc; i++) seq.push({ kind: 'work', dur: w.warm.work, title: 'Ogrevanje', side: !!w.warm.side, setText: (i + 1) + ' / ' + wc, segN: wc, segI: i, rN: 0, rI: 0 });
   if (wc > 0 && w.warmRest > 0) seq.push({ kind: 'rest', dur: w.warmRest, title: 'Premor' });
   const parts = w.swap ? 2 : 1;
   for (let pi = 0; pi < parts; pi++) for (let r = 0; r < w.rounds; r++) w.steps.forEach((st, i) => {
@@ -481,12 +479,12 @@ $('ed-form').onsubmit = e => {
 $('btn-new').onclick = () => openEditor(null);
 
 /* ---------- Časovnik ---------- */
-const T = { w: null, seq: [], idx: -1, running: false, endAt: 0, remMs: 0, lastSec: null, total: 0, iv: null, lock: null, locked: false, preview: false, hiddenAt: 0 };
+const T = { w: null, seq: [], idx: -1, running: false, endAt: 0, remMs: 0, lastSec: null, total: 0, iv: null, lock: null, preview: false, hiddenAt: 0 };
 const el = $('timer');
 
 function openTimer(w) {
   T.w = w; T.seq = buildSeq(w); T.total = totalOf(T.seq); T.idx = -1; T.running = false; T.lastSec = null;
-  $('t-name').textContent = w.name; setLock(false); disarmExit();
+  $('t-name').textContent = w.name; disarmExit();
   show('timer'); renderIdle(); $('t-go').focus();
 }
 function showRows(item, title) {
@@ -568,7 +566,7 @@ function pause() {
   $('t-clock').classList.remove('last3'); wake(false);
 }
 function finish() {
-  T.running = false; clearInterval(T.iv); T.idx = T.seq.length; beepDone(); wake(false); setLock(false); disarmExit();
+  T.running = false; clearInterval(T.iv); T.idx = T.seq.length; beepDone(); wake(false); disarmExit();
   el.dataset.kind = 'done'; el.classList.remove('paused'); showRows(null); showSegs(null);
   $('t-phase').textContent = 'Konec'; $('t-ex').textContent = 'Odlično opravljeno!';
   $('t-clock').textContent = '✓'; $('t-clock').classList.remove('last3');
@@ -576,14 +574,13 @@ function finish() {
   $('t-next').textContent = ''; $('t-bar').style.width = '100%'; $('t-go').textContent = 'Ponovi';
 }
 function toggle() {
-  if (T.locked) return;
   if (T.idx < 0) { run(); startPhase(0); }
   else if (T.idx >= T.seq.length) { T.idx = -1; renderIdle(); }
   else if (T.running) pause();
   else { T.endAt = Date.now() + T.remMs; run(); }
 }
 function jump(d) {
-  if (T.locked || T.idx < 0 || T.idx >= T.seq.length) return;
+  if (T.idx < 0 || T.idx >= T.seq.length) return;
   let i = T.idx + d;
   if (d < 0 && T.seq[T.idx].dur * 1000 - T.remMs > 2000) i = T.idx; // najprej ponovi trenutno fazo
   if (i < 0) i = 0;
@@ -591,31 +588,16 @@ function jump(d) {
   const was = T.running; T.running = true; startPhase(i, 0, !was); T.running = was;
   if (!was) { T.remMs = T.seq[i].dur * 1000; T.lastSec = null; paint(); }
 }
-function exitTimer() { T.running = false; clearInterval(T.iv); wake(false); setLock(false); disarmExit(); show('home'); }
+function exitTimer() { T.running = false; clearInterval(T.iv); wake(false); disarmExit(); show('home'); }
 
-/* Zaščita: »Končaj« sredi vadbe zahteva drugi dotik; zaklep onemogoči vse gumbe, odklene ga daljši pritisk. */
+/* Zaščita: »Končaj« sredi vadbe zahteva potrditev z drugim dotikom. */
 let exitArmed = false, exitTimerId = null;
-function disarmExit() { exitArmed = false; clearTimeout(exitTimerId); $('t-exit').textContent = '✕ Končaj'; }
+function disarmExit() { exitArmed = false; clearTimeout(exitTimerId); $('t-exit').textContent = '✕ Končaj'; $('t-exit').classList.remove('armed'); }
 function askExit() {
-  if (T.locked) return;
   if (T.idx < 0 || T.idx >= T.seq.length || exitArmed) { exitTimer(); return; }
-  exitArmed = true; $('t-exit').textContent = 'Res končaj?';
-  clearTimeout(exitTimerId); exitTimerId = setTimeout(disarmExit, 3000);
+  exitArmed = true; $('t-exit').textContent = 'Res končaj?'; $('t-exit').classList.add('armed');
+  clearTimeout(exitTimerId); exitTimerId = setTimeout(disarmExit, 4000);
 }
-function setLock(on) {
-  T.locked = on; el.classList.toggle('locked', on);
-  $('t-lock').textContent = on ? '🔒 Drži za odklep' : '🔓 Zakleni';
-  if (on) disarmExit();
-}
-let holdId = null, justUnlocked = false;
-const lockBtn = $('t-lock');
-lockBtn.addEventListener('pointerdown', () => { if (T.locked) holdId = setTimeout(() => { justUnlocked = true; setLock(false); }, 700); });
-for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) lockBtn.addEventListener(ev, () => clearTimeout(holdId));
-lockBtn.addEventListener('contextmenu', e => e.preventDefault());
-lockBtn.addEventListener('click', e => {
-  if (justUnlocked) { justUnlocked = false; return; }
-  if (!T.locked) setLock(true); else if (e.detail === 0) setLock(false); // tipkovnica odklene takoj
-});
 
 /* Zanesljivost: zaslon ostane prižgan; po vrnitvi iz ozadja se čas ujame in pokaže opozorilo. */
 async function wake(on) {
@@ -639,7 +621,7 @@ $('t-skip').onclick = () => jump(1);
 $('t-prev').onclick = () => jump(-1);
 $('t-exit').onclick = askExit;
 document.addEventListener('keydown', e => {
-  if (el.hidden || T.locked) return;
+  if (el.hidden) return;
   if (e.code === 'Space' || e.key === 'Enter') { if (e.target.tagName === 'BUTTON' && e.target.id !== 't-go') return; e.preventDefault(); toggle(); }
   else if (e.key === 'ArrowRight') jump(1);
   else if (e.key === 'ArrowLeft') jump(-1);
