@@ -383,12 +383,12 @@ function startPhase(i, carryMs = 0, silent = false) {
     const nx = T.seq[i + 1];
     $('t-next').textContent = !nx ? 'Zadnja vaja' : nx.kind === 'rest' ? 'Sledi: ' + nx.label.toLowerCase() + ' ' + nx.dur + ' s' : 'Sledi: ' + nx.label + ' ' + nx.dur + ' s';
   } else {
-    $('t-phase').textContent = p.label; $('t-ex').textContent = nw ? nw.label : '';
-    $('t-next').textContent = nw ? 'Sledi vaja · ' + nw.dur + ' s' : '';
+    $('t-phase').textContent = ''; $('t-ex').textContent = p.label;
+    $('t-next').textContent = nw && !/^Vaja \d+$/.test(nw.label) ? 'Sledi: ' + nw.label + ' · ' + nw.dur + ' s' : '';
   }
   const ref = p.kind === 'work' ? p : nw;
   $('t-set').textContent = ref ? ref.setText : '';
-  $('t-count').textContent = ref ? ref.exText : '';
+  $('t-count').textContent = ref && p.kind === 'work' ? ref.exText : '';
   tick();
 }
 function tick() {
