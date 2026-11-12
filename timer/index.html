@@ -158,7 +158,7 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
 <main class="wrap" id="home">
   <div class="head-row">
     <h1>Sweat <span>o'Clock</span></h1>
-    <span class="hint">Različica 11</span>
+    <span class="hint">Različica 12</span>
   </div>
   <p class="lead">Izberi trening in pritisni Start. Zapiska pri 3, 2, 1 pred začetkom vaje in v zadnjih treh sekundah vsake vaje in odmora. Na polovici vsake vaje se oglasi tril za menjavo strani.</p>
   <ul class="list" id="list"></ul>
@@ -308,8 +308,8 @@ const beepRest = () => { tone(660, 0.25); tone(440, 0.45, 0.25); }; // konec vaj
 let halfTimer = null;
 function halfCue() {
   for (let i = 0; i < 6; i++) tone(i % 2 ? 1175 : 1760, 0.09, i * 0.09, 0.6, 'sine');
-  const ph = $('t-phase'); ph.textContent = '↔ Menjava strani';
-  clearTimeout(halfTimer); halfTimer = setTimeout(() => { if (el.dataset.kind === 'work') ph.textContent = 'Vaja'; }, 4000);
+  const ph = $('t-phase'), before = ph.textContent === '↔ Menjava strani' ? '' : ph.textContent; ph.textContent = '↔ Menjava strani';
+  clearTimeout(halfTimer); halfTimer = setTimeout(() => { if (el.dataset.kind === 'work') ph.textContent = before; }, 4000);
 }
 const beepDone = () => { tone(660, 0.2); tone(880, 0.2, 0.22); tone(1320, 0.7, 0.44); };
 
@@ -419,8 +419,9 @@ function fillDuo(box, duo, title) {
   });
 }
 function showDuo(cur, nxt) {
-  fillDuo($('t-duo'), cur); fillDuo($('t-nduo'), nxt, 'Sledi');
-  $('t-ex').hidden = !!cur; if (nxt) $('t-next').textContent = '';
+  fillDuo($('t-nduo'), cur || nxt, cur ? 'Zdaj' : 'Sledi');
+  if (cur || nxt) $('t-next').textContent = '';
+  if (cur) { $('t-phase').textContent = ''; $('t-ex').textContent = 'Vaja'; }
   el.classList.toggle('has-duo', !!(cur || nxt));
 }
 function nextWork(from) { for (let i = from; i < T.seq.length; i++) if (T.seq[i].kind === 'work') return T.seq[i]; return null; }
