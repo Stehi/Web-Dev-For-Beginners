@@ -104,16 +104,13 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
 .step .line { display: grid; grid-template-columns: 2.6rem minmax(0, 1fr) auto; gap: .5rem; align-items: center; }
 .step .tag { font-size: .7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .step .tag.n { font-family: var(--display); font-size: 1.3rem; color: var(--paper); }
-.step .side { flex-direction: row; align-items: center; gap: .3rem; font-size: 1rem; color: var(--paper); letter-spacing: 0; }
+.side { flex-direction: row; align-items: center; gap: .3rem; font-size: 1rem; color: var(--paper); letter-spacing: 0; }
 .step .nums { display: grid; grid-template-columns: 2.6rem 1fr 1fr 2.75rem; gap: .5rem; align-items: end; }
 .step .del { min-height: 2.75rem; border-radius: .5rem; border: 1px solid var(--line); color: var(--muted); font-size: 1.1rem; }
 .step .del:hover { color: var(--danger); border-color: var(--danger); }
-.chips { display: flex; flex-wrap: wrap; gap: .4rem; }
-.chip { position: relative; display: block; }
-.chip input { position: absolute; opacity: 0; width: 1px; height: 1px; min-height: 0; }
-.chip span { display: grid; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: .5rem; border: 1px solid var(--line); background: var(--ink); color: var(--muted); font-size: 1rem; font-weight: 600; letter-spacing: 0; cursor: pointer; }
-.chip input:checked + span { background: var(--work); border-color: var(--work); color: var(--ink); font-weight: 700; }
-.chip input:focus-visible + span { outline: 3px solid var(--paper); outline-offset: 2px; }
+#ed-wlist { display: flex; flex-direction: column; gap: .4rem; }
+.wrow { display: grid; grid-template-columns: 1.8rem minmax(0, 1fr) auto; gap: .5rem; align-items: center; }
+.wrow .n { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
 .form-actions { display: flex; flex-wrap: wrap; gap: .6rem; }
 .form-actions .spacer { flex: 1; }
 .error { color: var(--danger); margin: 0; font-weight: 600; }
@@ -187,7 +184,7 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
 <main class="wrap" id="home">
   <div class="head-row">
     <h1>Sweat <span>o'Clock</span></h1>
-    <span class="hint">Različica 17</span>
+    <span class="hint">Različica 18</span>
   </div>
   <p class="lead">Izberi trening in pritisni Start. Zapiska pri 3, 2, 1 pred začetkom vaje in v zadnjih treh sekundah vsake vaje in odmora. Pri vajah, označenih z ↔, se na polovici oglasi tril za menjavo strani.</p>
   <ul class="list" id="list"></ul>
@@ -211,10 +208,10 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
         <label for="ed-wwork">Čas vaje (s)<input id="ed-wwork" type="number" inputmode="numeric" min="1" max="3600"></label>
         <label for="ed-wrest">Premor po ogrevanju (s)<input id="ed-wrest" type="number" inputmode="numeric" min="0" max="3600"></label>
       </div>
-      <div id="ed-wsides-wrap" style="display:flex;flex-direction:column;gap:.6rem">
-        <p class="hint">↔ Tril za menjavo strani na polovici – označi ogrevalne vaje, pri katerih naj zapiska:</p>
-        <div class="chips" id="ed-wsides"></div>
-        <div style="display:flex;gap:.5rem"><button class="btn small" id="ed-wall" type="button">Vse</button><button class="btn small" id="ed-wnone" type="button">Nobena</button></div>
+      <div id="ed-wlist-wrap" style="display:flex;flex-direction:column;gap:.6rem">
+        <p class="hint">Imena ogrevalnih vaj (lahko prilepiš cel seznam v prvo polje; vrstica, ki se konča z »JA«, dobi kljukico). Kljukica ↔ pomeni tril za menjavo strani na polovici.</p>
+        <div id="ed-wlist"></div>
+        <div style="display:flex;gap:.5rem"><button class="btn small" id="ed-wall" type="button">↔ Vse</button><button class="btn small" id="ed-wnone" type="button">↔ Nobena</button></div>
       </div>
     </fieldset>
 
@@ -275,11 +272,18 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
    čas, odmor po vaji in oznako menjave strani. Z »swap« sledi po pavzi drugi del, kjer skupini zamenjata vaje.
    Ko se vgrajeni trening spremeni v kodi, povečaj rev – naprave, kjer ga uporabnik ni sam urejal, dobijo novo različico. */
 const step = (a, b, work, rest, sideA = false, sideB = false) => ({ a, b, work, rest, sideA, sideB });
+// Ogrevanje: [ime, tril za menjavo strani na polovici]
+const WARM = [['Glava', 1], ['Rame', 1], ['Komolci', 1], ['Zapestja', 1], ['Roke'], ['Boki', 1], ['Telo na stran'], ['Telo gor dol'], ['Telo krožiš', 1],
+  ['Izpadni dotik stopala'], ['Izpadni stranski'], ['Izpadni naprej'], ['Rahel skiping'], ['Počep'], ['Jumping jacks'], ['Komolec koleno'], ['Metuljček sede'], ['Visok plank'], ['Strešica']];
 const BUILTIN = [
-  { id: 'vodena-vadba-2-seta', rev: 4, name: 'Vodena vadba', prep: 10,
+  { id: 'vodena-vadba-2-seta', rev: 5, name: 'Vodena vadba', prep: 10,
     // popravek za naprave, kjer je uporabnik trening že sam urejal: spremeni samo ti dve številki
-    patch: (w, from) => { if (from < 3 && w.steps.length === 5) w.steps[4].rest = 60; w.pause = 150; },
-    warm: { count: 19, work: 30, side: true }, warmRest: 90, rounds: 3, swap: true, pause: 150,
+    patch: (w, from) => {
+      if (from < 3 && w.steps.length === 5) w.steps[4].rest = 60;
+      if (from < 4) w.pause = 150;
+      if (from < 5 && w.warm && w.warm.count === 19) { w.warm.names = WARM.map(x => x[0]); w.warm.sides = WARM.map(x => !!x[1]); }
+    },
+    warm: { count: 19, work: 30, names: WARM.map(x => x[0]), sides: WARM.map(x => !!x[1]) }, warmRest: 90, rounds: 3, swap: true, pause: 150,
     steps: [
       step('Mrtvi dvig s kettlebellom ob eni strani', 'Front počep s štango', 40, 20, true),
       step('Kroženje KB okoli glave na kolenih', 'Pokončno veslanje s štango', 40, 20),
@@ -332,12 +336,13 @@ function warmSides(w) {
   const n = w.warm ? w.warm.count : 0, s = w.warm && w.warm.sides;
   return Array.from({ length: n }, (_, i) => Array.isArray(s) ? !!s[i] : !!(w.warm && w.warm.side));
 }
+function warmNames(w) { const n = w.warm ? w.warm.count : 0, a = (w.warm && w.warm.names) || []; return Array.from({ length: n }, (_, i) => (a[i] || '').trim()); }
 function buildSeq(w) {
   const seq = [{ kind: 'prep', dur: Math.max(3, w.prep || 10), title: 'Pripravi se' }];
   const two = w.steps.some(s => (s.b || '').trim());
   seq.two = two;
-  const wc = w.warm ? w.warm.count : 0, ws = warmSides(w);
-  for (let i = 0; i < wc; i++) seq.push({ kind: 'work', dur: w.warm.work, title: 'Ogrevanje', side: ws[i], setText: (i + 1) + ' / ' + wc, segN: wc, segI: i, rN: 0, rI: 0 });
+  const wc = w.warm ? w.warm.count : 0, ws = warmSides(w), wn = warmNames(w);
+  for (let i = 0; i < wc; i++) seq.push({ kind: 'work', dur: w.warm.work, title: 'Ogrevanje', side: ws[i], names: wn[i] ? [wn[i]] : undefined, sides: [ws[i]], solo: true, setText: (i + 1) + ' / ' + wc, segN: wc, segI: i, rN: 0, rI: 0 });
   if (wc > 0 && w.warmRest > 0) seq.push({ kind: 'rest', dur: w.warmRest, title: 'Premor' });
   const parts = w.swap ? 2 : 1;
   for (let pi = 0; pi < parts; pi++) for (let r = 0; r < w.rounds; r++) w.steps.forEach((st, i) => {
@@ -446,25 +451,39 @@ function addStep() {
   const r = stepRow(step('', '', last ? last.querySelector('.ex-work').value : 40, last ? last.querySelector('.ex-rest').value : 20));
   $('ed-steps').append(r); renumber(); return r;
 }
-function renderChips(states) {
-  const box = $('ed-wsides'); box.textContent = '';
-  states.forEach((on, i) => {
-    const l = mk('label', 'chip'), cb = mk('input'); cb.type = 'checkbox'; cb.checked = on;
-    cb.setAttribute('aria-label', 'Ogrevalna vaja ' + (i + 1) + ': tril na polovici');
-    l.append(cb, mk('span', '', i + 1)); box.append(l);
+function renderWarm(names, sides) {
+  const box = $('ed-wlist'); box.textContent = '';
+  names.forEach((name, i) => {
+    const row = mk('div', 'wrow'), inp = mk('input', 'w-name'); inp.type = 'text'; inp.maxLength = 50; inp.value = name; inp.autocomplete = 'off';
+    inp.setAttribute('aria-label', 'Ime ogrevalne vaje ' + (i + 1));
+    const side = mk('label', 'side'), cb = mk('input', 'w-side'); cb.type = 'checkbox'; cb.checked = !!sides[i]; cb.setAttribute('aria-label', 'Ogrevalna vaja ' + (i + 1) + ': tril na polovici');
+    side.append(cb, document.createTextNode('↔'));
+    inp.addEventListener('paste', e => {
+      const lines = (e.clipboardData.getData('text') || '').split(/\r?\n/).map(cleanName).filter(Boolean);
+      if (lines.length < 2) return;
+      e.preventDefault();
+      const st = warmState(Math.max(names.length, i + lines.length));
+      lines.forEach((t, k) => { const ja = /\s+JA\s*$/i.test(t); st.names[i + k] = t.replace(/\s+JA\s*$/i, ''); st.sides[i + k] = ja; });
+      $('ed-wcount').value = st.names.length; renderWarm(st.names, st.sides);
+    });
+    row.append(mk('span', 'n', i + 1), inp, side); box.append(row);
   });
-  $('ed-wsides-wrap').hidden = !states.length;
+  $('ed-wlist-wrap').hidden = !names.length;
 }
-function chipStates(n) { const cur = [...$('ed-wsides').querySelectorAll('input')].map(c => c.checked); return Array.from({ length: n }, (_, i) => !!cur[i]); }
-$('ed-wcount').addEventListener('input', () => renderChips(chipStates(Math.min(99, Math.max(0, parseInt($('ed-wcount').value, 10) || 0)))));
-$('ed-wall').onclick = () => $('ed-wsides').querySelectorAll('input').forEach(c => { c.checked = true; });
-$('ed-wnone').onclick = () => $('ed-wsides').querySelectorAll('input').forEach(c => { c.checked = false; });
+function warmState(n) {
+  const rows = [...$('ed-wlist').children];
+  return { names: Array.from({ length: n }, (_, i) => rows[i] ? cleanName(rows[i].querySelector('.w-name').value) : ''),
+           sides: Array.from({ length: n }, (_, i) => rows[i] ? rows[i].querySelector('.w-side').checked : false) };
+}
+$('ed-wcount').addEventListener('input', () => { const st = warmState(Math.min(99, Math.max(0, parseInt($('ed-wcount').value, 10) || 0))); renderWarm(st.names, st.sides); });
+$('ed-wall').onclick = () => $('ed-wlist').querySelectorAll('.w-side').forEach(c => { c.checked = true; });
+$('ed-wnone').onclick = () => $('ed-wlist').querySelectorAll('.w-side').forEach(c => { c.checked = false; });
 function openEditor(w) {
   editing = w || null;
   const d = w || { name: '', prep: 10, warm: { count: 0, work: 30, side: true }, warmRest: 60, rounds: 3, swap: false, pause: 240, steps: [step('', '', 40, 20)] };
   $('ed-title').textContent = w ? 'Uredi trening' : 'Nov trening';
   $('ed-name').value = d.name; $('ed-prep').value = d.prep || 10;
-  $('ed-wcount').value = d.warm.count; $('ed-wwork').value = d.warm.work; $('ed-wrest').value = d.warmRest; renderChips(warmSides(d));
+  $('ed-wcount').value = d.warm.count; $('ed-wwork').value = d.warm.work; $('ed-wrest').value = d.warmRest; renderWarm(warmNames(d), warmSides(d));
   $('ed-rounds').value = d.rounds; $('ed-pause').value = d.pause; $('ed-swap').checked = !!d.swap;
   const box = $('ed-steps'); box.textContent = ''; d.steps.forEach(s => box.append(stepRow(s))); renumber();
   $('ed-error').hidden = true; $('ed-delete').hidden = !w; $('ed-copy').hidden = !w; $('ed-delete').textContent = 'Izbriši'; delArmed = false;
@@ -501,7 +520,7 @@ $('ed-form').onsubmit = e => {
   else if (steps.some(s => s.work === null || s.rest === null)) err = 'Vsaka vaja potrebuje čas vsaj 1 sekundo in odmor 0 ali več.';
   else if (rounds === null || pause === null) err = 'Število krogov mora biti vsaj 1, pavza 0 ali več.';
   if (err) { $('ed-error').textContent = err; $('ed-error').hidden = false; return; }
-  const data = { name, prep, warm: { count: wcount, work: wwork || 30, sides: chipStates(wcount) }, warmRest: wrest, rounds, pause, swap: $('ed-swap').checked, steps, edited: true };
+  const data = { name, prep, warm: { count: wcount, work: wwork || 30, ...warmState(wcount) }, warmRest: wrest, rounds, pause, swap: $('ed-swap').checked, steps, edited: true };
   if (editing) { Object.assign(editing, data); delete editing.example; }
   else store.workouts.push({ id: 'w' + Date.now().toString(36), ...data });
   persist(); renderList(); show('home');
@@ -523,8 +542,8 @@ function showRows(item, title) {
   if (!names) return;
   box.append(mk('div', 'title', title));
   names.forEach((name, i) => {
-    const row = mk('div', 'row' + (T.seq.two ? '' : ' solo'));
-    if (T.seq.two) row.append(mk('span', 'g', 'Skupina ' + (i + 1)));
+    const two = T.seq.two && !item.solo, row = mk('div', 'row' + (two ? '' : ' solo'));
+    if (two) row.append(mk('span', 'g', 'Skupina ' + (i + 1)));
     row.append(mk('span', 'n', (name || '—') + (item.sides[i] ? ' ↔' : ''))); box.append(row);
   });
 }
