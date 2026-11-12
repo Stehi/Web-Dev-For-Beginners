@@ -192,9 +192,9 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
 const KROG = [ { work: 40, rest: 20 }, { work: 40, rest: 20 }, { work: 40, rest: 60 }, { work: 40, rest: 20 }, { work: 40, rest: 40 } ];
 const BUILTIN = [
   { id: 'vodena-vadba-2-seta', name: 'Vodena vadba', prep: 10,
-    summary: 'ogrevanje 10:00 · 2 seta × 3 krogi × 5 vaj · 40 s vaja',
+    summary: 'ogrevanje 19 × 30 s · 2 seta × 3 krogi × 5 vaj · 40 s vaja',
     blocks: [
-      { kind: 'work', label: 'Ogrevanje', dur: 600 },
+      ...Array.from({ length: 19 }, (_, i) => ({ kind: 'work', label: 'Ogrevanje', dur: 30, setText: 'Ogrevanje', exText: 'Vaja ' + (i + 1) + ' / 19' })),
       { kind: 'rest', label: 'Premor', dur: 90 },
       { name: 'Set 1', rounds: 3, steps: KROG, after: 240, afterLabel: 'Pavza · menjava rekvizitov' },
       { name: 'Set 2', rounds: 3, steps: KROG, after: 0 },
@@ -229,7 +229,7 @@ function buildSeq(w) {
   const seq = [{ kind: 'prep', dur: Math.max(3, w.prep || 10), label: 'Pripravi se' }];
   if (w.blocks) {
     for (const b of w.blocks) {
-      if (b.dur) { seq.push({ kind: b.kind, dur: b.dur, label: b.label, setText: '', exText: '' }); continue; }
+      if (b.dur) { seq.push({ kind: b.kind, dur: b.dur, label: b.label, setText: b.setText || '', exText: b.exText || '' }); continue; }
       for (let r = 1; r <= b.rounds; r++) b.steps.forEach((st, i) => {
         const setText = b.name + ' · krog ' + r + ' / ' + b.rounds, exText = 'Vaja ' + (i + 1) + ' / ' + b.steps.length;
         seq.push({ kind: 'work', dur: st.work, label: st.name || 'Vaja ' + (i + 1), setText, exText });
