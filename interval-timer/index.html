@@ -115,6 +115,13 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
 @media (prefers-reduced-motion: reduce) { .clock.last3 { animation: none; } #timer { transition: none; } }
 .meta { display: flex; flex-wrap: wrap; justify-content: center; gap: .25rem 1.5rem; font-weight: 700; font-size: clamp(1rem, 3.2vw, 1.5rem); font-variant-numeric: tabular-nums; }
 .next { font-weight: 500; font-size: clamp(.95rem, 2.8vw, 1.3rem); margin-top: .4rem; overflow-wrap: anywhere; }
+.duo { display: flex; flex-direction: column; gap: .3rem; width: 100%; max-width: 46rem; margin-top: .5rem; }
+.duo .title { font-weight: 700; letter-spacing: .2em; text-transform: uppercase; font-size: .85rem; }
+.duo .row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .7rem; align-items: baseline; text-align: left; padding-top: .3rem; border-top: 2px solid color-mix(in srgb, var(--on) 25%, transparent); }
+.duo .g { font-weight: 700; font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+.duo .n { font-family: var(--display); font-weight: 900; text-transform: uppercase; line-height: 1.05; font-size: clamp(1.25rem, 5.2vw, 2.6rem); overflow-wrap: anywhere; }
+#timer.has-duo .clock { font-size: min(38vw, 30vh); }
+@media (max-height: 480px) { #timer.has-duo .clock { font-size: 20vh; } .duo { margin-top: .2rem; gap: .1rem; } .duo .n { font-size: 1.1rem; } .duo .title { display: none; } }
 .bar { height: .5rem; border-radius: .25rem; background: color-mix(in srgb, var(--on) 20%, transparent); overflow: hidden; margin: .9rem 0; }
 .bar i { display: block; height: 100%; width: 0; background: var(--on); }
 .t-controls { display: flex; align-items: center; justify-content: center; gap: .75rem; }
@@ -131,7 +138,7 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
 <main class="wrap" id="home">
   <div class="head-row">
     <h1>Sweat <span>o'Clock</span></h1>
-    <span class="hint">Različica 10</span>
+    <span class="hint">Različica 11</span>
   </div>
   <p class="lead">Izberi trening in pritisni Start. Zapiska pri 3, 2, 1 pred začetkom vaje in v zadnjih treh sekundah vsake vaje in odmora. Na polovici vsake vaje se oglasi tril za menjavo strani.</p>
   <ul class="list" id="list"></ul>
@@ -175,9 +182,11 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
   <div class="t-main">
     <div class="phase" id="t-phase"></div>
     <div class="exercise" id="t-ex"></div>
+    <div class="duo" id="t-duo" hidden></div>
     <div class="clock" id="t-clock"></div>
     <div class="meta"><span id="t-set"></span><span id="t-count"></span><span id="t-total"></span></div>
     <div class="next" id="t-next"></div>
+    <div class="duo" id="t-nduo" hidden></div>
   </div>
   <div class="bar"><i id="t-bar"></i></div>
   <div class="t-controls">
@@ -189,15 +198,18 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
 
 <script>
 /* ---------- Vgrajeni treningi (tukaj se dodajajo shranjeni sistemi) ---------- */
-const KROG = [ { work: 40, rest: 20 }, { work: 40, rest: 20 }, { work: 40, rest: 40 }, { work: 40, rest: 20 }, { work: 40, rest: 40 } ];
+// Dve skupini delata hkrati: v 1. delu skupina 1 dela vaje SET 1 in skupina 2 vaje SET 2, po menjavi rekvizitov obratno.
+const SET1 = ['Mrtvi dvig s kettlebellom ob eni strani', 'Kroženje KB okoli glave na kolenih', 'Mountain climber z dlanmi na medicinki', 'Triceps izteg s kettlebellom za glavo', 'Goblet počep s kettlebellom z 2s zadržkom spodaj'];
+const SET2 = ['Front počep s štango', 'Pokončno veslanje s štango', 'Izmenični thruster z ročkama', 'Ozki potisk z ročkama leže na tleh', 'Hollow hold'];
+const krog = (a, b) => [20, 20, 40, 20, 40].map((rest, i) => ({ work: 40, rest, duo: [a[i], b[i]] }));
 const BUILTIN = [
   { id: 'vodena-vadba-2-seta', name: 'Vodena vadba', prep: 10,
     summary: 'ogrevanje 19 × 30 s · 2 seta × 3 krogi × 5 vaj · 40 s vaja',
     blocks: [
       ...Array.from({ length: 19 }, (_, i) => ({ kind: 'work', label: 'Ogrevanje', dur: 30, setText: 'Ogrevanje', exText: 'Vaja ' + (i + 1) + ' / 19' })),
       { kind: 'rest', label: 'Premor', dur: 90 },
-      { name: 'Set 1', rounds: 3, steps: KROG, after: 240, afterLabel: 'Pavza · menjava rekvizitov' },
-      { name: 'Set 2', rounds: 3, steps: KROG, after: 0 },
+      { name: '1. del', rounds: 3, steps: krog(SET1, SET2), after: 240, afterLabel: 'Pavza · menjava rekvizitov' },
+      { name: '2. del', rounds: 3, steps: krog(SET2, SET1), after: 0 },
     ] },
   { id: 'primer-krozni', example: true, name: 'Krožni trening', sets: 3, rest: 20, setRest: 60, prep: 10,
     exercises: [
@@ -232,7 +244,7 @@ function buildSeq(w) {
       if (b.dur) { seq.push({ kind: b.kind, dur: b.dur, label: b.label, setText: b.setText || '', exText: b.exText || '' }); continue; }
       for (let r = 1; r <= b.rounds; r++) b.steps.forEach((st, i) => {
         const setText = b.name + ' · krog ' + r + ' / ' + b.rounds, exText = 'Vaja ' + (i + 1) + ' / ' + b.steps.length;
-        seq.push({ kind: 'work', dur: st.work, label: st.name || 'Vaja ' + (i + 1), setText, exText });
+        seq.push({ kind: 'work', dur: st.work, label: st.name || 'Vaja ' + (i + 1), duo: st.duo, setText, exText });
         const end = i === b.steps.length - 1 && r === b.rounds, rest = end ? b.after : st.rest;
         if (rest > 0) seq.push({ kind: 'rest', dur: rest, label: (end && b.afterLabel) || 'Odmor', setText, exText });
       });
@@ -366,7 +378,7 @@ function openTimer(w) {
   show('timer'); renderIdle(); $('t-go').focus();
 }
 function renderIdle() {
-  el.dataset.kind = 'idle'; el.classList.remove('paused');
+  el.dataset.kind = 'idle'; el.classList.remove('paused'); showDuo(null, null);
   $('t-phase').textContent = 'Pripravljeno';
   $('t-ex').textContent = T.seq[1].label;
   $('t-clock').textContent = fmt(T.total - T.seq[0].dur); $('t-clock').classList.remove('last3');
@@ -375,6 +387,21 @@ function renderIdle() {
   $('t-total').textContent = '';
   $('t-next').textContent = 'Pritisni Start – odštevanje ' + T.seq[0].dur + ' s, nato 3, 2, 1.';
   $('t-bar').style.width = '0%'; $('t-go').textContent = 'Start';
+}
+function fillDuo(box, duo, title) {
+  box.hidden = !duo; box.textContent = ''; if (!duo) return;
+  if (title) { const t = document.createElement('div'); t.className = 'title'; t.textContent = title; box.append(t); }
+  duo.forEach((name, i) => {
+    const row = document.createElement('div'); row.className = 'row';
+    const g = document.createElement('span'); g.className = 'g'; g.textContent = 'Skupina ' + (i + 1);
+    const n = document.createElement('span'); n.className = 'n'; n.textContent = name;
+    row.append(g, n); box.append(row);
+  });
+}
+function showDuo(cur, nxt) {
+  fillDuo($('t-duo'), cur); fillDuo($('t-nduo'), nxt, 'Sledi');
+  $('t-ex').hidden = !!cur; if (nxt) $('t-next').textContent = '';
+  el.classList.toggle('has-duo', !!(cur || nxt));
 }
 function nextWork(from) { for (let i = from; i < T.seq.length; i++) if (T.seq[i].kind === 'work') return T.seq[i]; return null; }
 
@@ -392,6 +419,7 @@ function startPhase(i, carryMs = 0, silent = false) {
     $('t-phase').textContent = ''; $('t-ex').textContent = p.label;
     $('t-next').textContent = nw && !/^Vaja \d+$/.test(nw.label) ? 'Sledi: ' + nw.label + ' · ' + nw.dur + ' s' : '';
   }
+  showDuo(p.kind === 'work' ? p.duo : null, p.kind !== 'work' && nw ? nw.duo : null);
   const ref = p.kind === 'work' ? p : nw;
   $('t-set').textContent = ref ? ref.setText : '';
   $('t-count').textContent = ref && p.kind === 'work' ? ref.exText : '';
@@ -434,7 +462,7 @@ function pause() {
 }
 function finish() {
   T.running = false; clearInterval(T.iv); T.idx = T.seq.length; beepDone(); wake(false);
-  el.dataset.kind = 'done'; el.classList.remove('paused');
+  el.dataset.kind = 'done'; el.classList.remove('paused'); showDuo(null, null);
   $('t-phase').textContent = 'Konec'; $('t-ex').textContent = 'Odlično opravljeno!';
   $('t-clock').textContent = '✓'; $('t-clock').classList.remove('last3');
   $('t-set').textContent = ''; $('t-count').textContent = ''; $('t-total').textContent = 'Skupaj ' + fmt(T.total - T.seq[0].dur);
