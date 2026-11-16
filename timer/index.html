@@ -187,7 +187,7 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
 <main class="wrap" id="home">
   <div class="head-row">
     <h1>Sweat <span>o'Clock</span></h1>
-    <span class="hint">Različica 20</span>
+    <span class="hint">Različica 21</span>
   </div>
   <p class="lead">Izberi trening in pritisni Start. Pred začetkom vaje zapiska pri 2 in 1, nato dolg pisk za start; ob koncu vaje se oglasi samo pisk za konec. Pri vajah, označenih z ↔, se na polovici oglasi tril za menjavo strani.</p>
   <ul class="list" id="list"></ul>
@@ -220,7 +220,7 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
 
     <fieldset>
       <legend>Vaje v krogu</legend>
-      <p class="hint">Seznam vaj lahko prilepiš v prvo polje skupine – vsaka vrstica gre v svojo vajo. Polje »Sk. 2« pusti prazno, če vadi ena skupina. Kljukica ↔ pomeni tril za menjavo strani na polovici vaje. Odmor pri zadnji vaji je odmor med krogi.</p>
+      <p class="hint">Seznam vaj lahko prilepiš v prvo polje skupine – vsaka vrstica gre v svojo vajo. Polje »Sk. 2« pusti prazno, če vadi ena skupina. Kljukica ↔ pomeni tril za menjavo strani na polovici vaje. Odmor pri zadnji vaji je odmor med krogi. Če spodaj nastaviš »Vaj v seriji«, se vaje po vrsti razdelijo v serije; vsaka serija se ponovi tolikokrat, kot je krogov.</p>
       <div id="ed-steps"></div>
       <div><button class="btn small" id="ed-add" type="button">+ Dodaj vajo</button></div>
     </fieldset>
@@ -229,6 +229,8 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
       <legend>Krogi in deli</legend>
       <div class="grid">
         <label for="ed-rounds">Število krogov<input id="ed-rounds" type="number" inputmode="numeric" min="1" max="99"></label>
+        <label for="ed-group">Vaj v seriji (0 = vse v enem krogu)<input id="ed-group" type="number" inputmode="numeric" min="0" max="99"></label>
+        <label for="ed-srest">Pavza po seriji (s)<input id="ed-srest" type="number" inputmode="numeric" min="0" max="3600"></label>
         <label for="ed-pause">Pavza med deloma (s)<input id="ed-pause" type="number" inputmode="numeric" min="0" max="3600"></label>
       </div>
       <label class="check" for="ed-swap"><input id="ed-swap" type="checkbox"> Dva dela s pavzo vmes – v drugem delu skupini zamenjata vaje</label>
@@ -294,6 +296,10 @@ const BUILTIN = [
       step('Triceps izteg s kettlebellom za glavo', 'Ozki potisk z ročkama leže na tleh', 40, 20),
       step('Goblet počep s kettlebellom z 2s zadržkom spodaj', 'Hollow hold', 40, 60),
     ] },
+  { id: 'serije-5x2', rev: 1, name: 'Trening v serijah', prep: 10,
+    warm: { count: 19, work: 30, names: WARM.map(x => x[0]), sides: WARM.map(x => !!x[1]) }, warmRest: 90,
+    rounds: 3, group: 2, seriesRest: 120, swap: false, pause: 0,
+    steps: Array.from({ length: 10 }, () => step('', '', 40, 20)) },
   { id: 'primer-krozni', rev: 2, example: true, name: 'Krožni trening', prep: 10,
     warm: { count: 0, work: 30, side: false }, warmRest: 0, rounds: 3, swap: false, pause: 0,
     steps: ['Počepi', 'Sklece', 'Izpadni koraki', 'Plank', 'Poskoki', 'Trebušnjaki'].map((n, i) => step(n, '', 40, i < 5 ? 20 : 60)) },
@@ -340,6 +346,7 @@ function warmSides(w) {
   return Array.from({ length: n }, (_, i) => Array.isArray(s) ? !!s[i] : !!(w.warm && w.warm.side));
 }
 function warmNames(w) { const n = w.warm ? w.warm.count : 0, a = (w.warm && w.warm.names) || []; return Array.from({ length: n }, (_, i) => (a[i] || '').trim()); }
+const seriesSize = w => (w.group > 0 && w.group < w.steps.length ? w.group : w.steps.length);
 function buildSeq(w) {
   const seq = [{ kind: 'prep', dur: Math.max(3, w.prep || 10), title: 'Pripravi se' }];
   const two = w.steps.some(s => (s.b || '').trim());
@@ -347,17 +354,21 @@ function buildSeq(w) {
   const wc = w.warm ? w.warm.count : 0, ws = warmSides(w), wn = warmNames(w);
   for (let i = 0; i < wc; i++) seq.push({ kind: 'work', dur: w.warm.work, title: 'Ogrevanje', side: ws[i], names: wn[i] ? [wn[i]] : undefined, sides: [ws[i]], solo: true, setText: (i + 1) + ' / ' + wc, segN: wc, segI: i, rN: 0, rI: 0 });
   if (wc > 0 && w.warmRest > 0) seq.push({ kind: 'rest', dur: w.warmRest, title: 'Premor' });
-  const parts = w.swap ? 2 : 1;
-  for (let pi = 0; pi < parts; pi++) for (let r = 0; r < w.rounds; r++) w.steps.forEach((st, i) => {
+  // serije: vaje se razdelijo v skupine po w.group vaj; vsaka serija se ponovi w.rounds-krat, po njej sledi w.seriesRest
+  const parts = w.swap ? 2 : 1, n = w.steps.length, g = seriesSize(w), chunks = Math.ceil(n / g);
+  for (let pi = 0; pi < parts; pi++) for (let c = 0; c < chunks; c++) for (let r = 0; r < w.rounds; r++) w.steps.slice(c * g, c * g + g).forEach((st, k, chunk) => {
+    const i = c * g + k;
     const a = (st.a || '').trim() || 'Vaja ' + (i + 1), b = (st.b || '').trim();
     const flip = pi === 1 && two;
     const names = !two ? [a] : flip ? [b, a] : [a, b];
     const sides = !two ? [!!st.sideA] : flip ? [!!st.sideB && !!b, !!st.sideA] : [!!st.sideA, !!st.sideB && !!b];
     seq.push({ kind: 'work', dur: st.work, title: 'Vaja', names, sides, side: sides.some(Boolean),
-      setText: (parts > 1 ? (pi + 1) + '. del · ' : '') + 'krog ' + (r + 1) + ' / ' + w.rounds, segN: w.steps.length, segI: i, rN: w.rounds, rI: r });
-    const lastOfPart = i === w.steps.length - 1 && r === w.rounds - 1;
-    if (lastOfPart) { if (pi < parts - 1 && w.pause > 0) seq.push({ kind: 'rest', dur: w.pause, title: two ? 'Pavza · menjava rekvizitov' : 'Pavza' }); }
-    else if (st.rest > 0) seq.push({ kind: 'rest', dur: st.rest, title: 'Odmor' });
+      setText: (parts > 1 ? (pi + 1) + '. del · ' : '') + (chunks > 1 ? 'Serija ' + (c + 1) + ' / ' + chunks + ' · ' : '') + 'krog ' + (r + 1) + ' / ' + w.rounds,
+      segN: chunk.length, segI: k, rN: w.rounds, rI: r });
+    const lastOfSeries = k === chunk.length - 1 && r === w.rounds - 1;
+    if (!lastOfSeries) { if (st.rest > 0) seq.push({ kind: 'rest', dur: st.rest, title: 'Odmor' }); }
+    else if (c < chunks - 1) { if (w.seriesRest > 0) seq.push({ kind: 'rest', dur: w.seriesRest, title: 'Pavza' }); }
+    else if (pi < parts - 1 && w.pause > 0) seq.push({ kind: 'rest', dur: w.pause, title: two ? 'Pavza · menjava rekvizitov' : 'Pavza' });
   });
   return seq;
 }
@@ -365,7 +376,8 @@ const totalOf = seq => seq.reduce((a, p) => a + p.dur, 0);
 function facts(w, seq) { // [oznaka, vrednost]
   const f = [];
   if (w.warm && w.warm.count > 0) f.push(['Ogrevanje', w.warm.count + ' × ' + w.warm.work + ' s']);
-  f.push(['Glavni del', (w.swap ? '2 dela × ' : '') + plural(w.rounds, 'krog', 'kroga', 'krogi', 'krogov') + ' × ' + plural(w.steps.length, 'vaja', 'vaji', 'vaje', 'vaj')]);
+  const g = seriesSize(w), chunks = Math.ceil(w.steps.length / g);
+  f.push(['Glavni del', (w.swap ? '2 dela × ' : '') + (chunks > 1 ? plural(chunks, 'serija', 'seriji', 'serije', 'serij') + ' × ' : '') + plural(w.rounds, 'krog', 'kroga', 'krogi', 'krogov') + ' × ' + plural(g, 'vaja', 'vaji', 'vaje', 'vaj')]);
   if (seq.two) f.push(['Skupini', '2']);
   f.push(['Skupaj', fmt(totalOf(seq) - seq[0].dur)]);
   return f;
@@ -450,7 +462,11 @@ function stepRow(st) {
   nums.append(mk('span'), num('ex-work', 'Vaja (s)', st.work, 1), num('ex-rest', 'Odmor po vaji (s)', st.rest, 0), del);
   row.append(la, lb, nums); return row;
 }
-function renumber() { [...$('ed-steps').children].forEach((r, i) => r.querySelector('.tag.n').textContent = i + 1); }
+function renumber() {
+  const g = parseInt($('ed-group').value, 10) || 0; // vaje iste serije stojijo skupaj, med serijami je večji razmik
+  [...$('ed-steps').children].forEach((r, i) => { r.querySelector('.tag.n').textContent = i + 1; r.style.marginTop = g > 0 && i > 0 && i % g === 0 ? '1.1rem' : ''; });
+}
+$('ed-group').addEventListener('input', renumber);
 function addStep() {
   const rows = $('ed-steps').children, last = rows[rows.length - 1];
   const r = stepRow(step('', '', last ? last.querySelector('.ex-work').value : 40, last ? last.querySelector('.ex-rest').value : 20));
@@ -489,7 +505,7 @@ function openEditor(w) {
   $('ed-title').textContent = w ? 'Uredi trening' : 'Nov trening';
   $('ed-name').value = d.name; $('ed-prep').value = d.prep || 10;
   $('ed-wcount').value = d.warm.count; $('ed-wwork').value = d.warm.work; $('ed-wrest').value = d.warmRest; renderWarm(warmNames(d), warmSides(d));
-  $('ed-rounds').value = d.rounds; $('ed-pause').value = d.pause; $('ed-swap').checked = !!d.swap;
+  $('ed-rounds').value = d.rounds; $('ed-group').value = d.group || 0; $('ed-srest').value = d.seriesRest || 0; $('ed-pause').value = d.pause; $('ed-swap').checked = !!d.swap;
   const box = $('ed-steps'); box.textContent = ''; d.steps.forEach(s => box.append(stepRow(s))); renumber();
   $('ed-error').hidden = true; $('ed-delete').hidden = !w; $('ed-copy').hidden = !w; $('ed-delete').textContent = 'Izbriši'; delArmed = false;
   show('editor');
@@ -512,7 +528,7 @@ $('ed-form').onsubmit = e => {
   const int = (v, min) => { v = parseInt(v, 10); return Number.isFinite(v) && v >= min ? v : null; };
   const name = $('ed-name').value.trim(), prep = int($('ed-prep').value, 3);
   const wcount = int($('ed-wcount').value, 0), wwork = int($('ed-wwork').value, 1), wrest = int($('ed-wrest').value, 0);
-  const rounds = int($('ed-rounds').value, 1), pause = int($('ed-pause').value, 0);
+  const rounds = int($('ed-rounds').value, 1), pause = int($('ed-pause').value, 0), group = int($('ed-group').value || 0, 0), seriesRest = int($('ed-srest').value || 0, 0);
   const steps = [...$('ed-steps').children].map(r => ({
     a: cleanName(r.querySelector('.ex-a').value), b: cleanName(r.querySelector('.ex-b').value),
     sideA: r.querySelector('.ex-a-side').checked, sideB: r.querySelector('.ex-b-side').checked,
@@ -523,9 +539,9 @@ $('ed-form').onsubmit = e => {
   else if (wcount === null || wrest === null || (wcount > 0 && wwork === null)) err = 'Preveri številke pri ogrevanju.';
   else if (!steps.length) err = 'Dodaj vsaj eno vajo.';
   else if (steps.some(s => s.work === null || s.rest === null)) err = 'Vsaka vaja potrebuje čas vsaj 1 sekundo in odmor 0 ali več.';
-  else if (rounds === null || pause === null) err = 'Število krogov mora biti vsaj 1, pavza 0 ali več.';
+  else if (rounds === null || pause === null || group === null || seriesRest === null) err = 'Število krogov mora biti vsaj 1, pavza 0 ali več.';
   if (err) { $('ed-error').textContent = err; $('ed-error').hidden = false; return; }
-  const data = { name, prep, warm: { count: wcount, work: wwork || 30, ...warmState(wcount) }, warmRest: wrest, rounds, pause, swap: $('ed-swap').checked, steps, edited: true };
+  const data = { name, prep, warm: { count: wcount, work: wwork || 30, ...warmState(wcount) }, warmRest: wrest, rounds, group, seriesRest, pause, swap: $('ed-swap').checked, steps, edited: true };
   if (editing) { Object.assign(editing, data); delete editing.example; }
   else store.workouts.push({ id: 'w' + Date.now().toString(36), ...data });
   persist(); renderList(); show('home');
