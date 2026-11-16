@@ -167,7 +167,7 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
 <main class="wrap" id="home">
   <div class="head-row">
     <h1>Sweat <span>o'Clock</span></h1>
-    <span class="hint">Različica 21</span>
+    <span class="hint">Različica 22</span>
   </div>
   <p class="lead">Izberi trening in pritisni Start. Pred začetkom vaje zapiska pri 2 in 1, nato dolg pisk za start; ob koncu vaje se oglasi samo pisk za konec. Pri vajah, označenih z ↔, se na polovici oglasi tril za menjavo strani.</p>
   <ul class="list" id="list"></ul>
@@ -260,6 +260,12 @@ const step = (a, b, work, rest, sideA = false, sideB = false) => ({ a, b, work, 
 // Ogrevanje: [ime, tril za menjavo strani na polovici]
 const WARM = [['Glava', 1], ['Rame', 1], ['Komolci', 1], ['Zapestja', 1], ['Roke'], ['Boki', 1], ['Telo na stran'], ['Telo gor dol'], ['Telo krožiš', 1],
   ['Izpadni dotik stopala'], ['Izpadni stranski'], ['Izpadni naprej'], ['Rahel skiping'], ['Počep'], ['Jumping jacks'], ['Komolec koleno'], ['Metuljček sede'], ['Visok plank'], ['Strešica']];
+// Trening v serijah: 5 parov vaj [ime, tril za menjavo strani na polovici]
+const PARI = [['Počep s kettlebellom v racku na eni rami', 1], ['Renegade row z ročkama'],
+  ['Sumo mrtvi dvig s štango'], ['Skull crusher z ročkama leže na tleh, nevtralen prijem'],
+  ['Push press s štango'], ['Bolgarski izpadni korak z ročkami, zadnja noga na medicinki', 1],
+  ['Crush grip curl s kettlebellom'], ['Burpee z 2x zibanjem v počepu'],
+  ['Dvig medenice s kettlebellom na kolkih izmenično noge'], ['Plank jack z dotikom ramena']];
 const BUILTIN = [
   { id: 'vodena-vadba-2-seta', rev: 5, name: 'Vodena vadba', prep: 10,
     // popravek za naprave, kjer je uporabnik trening že sam urejal: spremeni samo ti dve številki
@@ -276,10 +282,11 @@ const BUILTIN = [
       step('Triceps izteg s kettlebellom za glavo', 'Ozki potisk z ročkama leže na tleh', 40, 20),
       step('Goblet počep s kettlebellom z 2s zadržkom spodaj', 'Hollow hold', 40, 60),
     ] },
-  { id: 'serije-5x2', rev: 1, name: 'Trening v serijah', prep: 10,
+  { id: 'serije-5x2', rev: 2, name: 'Trening v serijah', prep: 10,
+    patch: (w, from) => { if (from < 2 && w.steps.length === 10) PARI.forEach((x, i) => { w.steps[i].a = x[0]; w.steps[i].sideA = !!x[1]; }); },
     warm: { count: 19, work: 30, names: WARM.map(x => x[0]), sides: WARM.map(x => !!x[1]) }, warmRest: 90,
     rounds: 3, group: 2, seriesRest: 120, swap: false, pause: 0,
-    steps: Array.from({ length: 10 }, () => step('', '', 40, 20)) },
+    steps: PARI.map(x => step(x[0], '', 40, 20, !!x[1])) },
   { id: 'primer-krozni', rev: 2, example: true, name: 'Krožni trening', prep: 10,
     warm: { count: 0, work: 30, side: false }, warmRest: 0, rounds: 3, swap: false, pause: 0,
     steps: ['Počepi', 'Sklece', 'Izpadni koraki', 'Plank', 'Poskoki', 'Trebušnjaki'].map((n, i) => step(n, '', 40, i < 5 ? 20 : 60)) },
