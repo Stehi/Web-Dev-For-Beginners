@@ -167,7 +167,7 @@ legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-
 <main class="wrap" id="home">
   <div class="head-row">
     <h1>Sweat <span>o'Clock</span></h1>
-    <span class="hint">Različica 22</span>
+    <span class="hint">Različica 23</span>
   </div>
   <p class="lead">Izberi trening in pritisni Start. Pred začetkom vaje zapiska pri 2 in 1, nato dolg pisk za start; ob koncu vaje se oglasi samo pisk za konec. Pri vajah, označenih z ↔, se na polovici oglasi tril za menjavo strani.</p>
   <ul class="list" id="list"></ul>
@@ -266,22 +266,24 @@ const PARI = [['Počep s kettlebellom v racku na eni rami', 1], ['Renegade row z
   ['Push press s štango'], ['Bolgarski izpadni korak z ročkami, zadnja noga na medicinki', 1],
   ['Crush grip curl s kettlebellom'], ['Burpee z 2x zibanjem v počepu'],
   ['Dvig medenice s kettlebellom na kolkih izmenično noge'], ['Plank jack z dotikom ramena']];
+// Vodena vadba: pari vaj [skupina 1, skupina 2]
+const DUO = [
+  ['Goblet squat with heartbeat', 'B-stance Romanian deadlift'],
+  ['Kettlebell pullover (Na hrbtu ravne roke dvig KB)', 'Chest fly z ročkama leže na tleh'],
+  ['Dead-stop swing (Med noge gr odložiš skor)', 'Izpadni korak nazaj z ročkama in dvigom kolena'],
+  ['Bottoms-up press', 'Upright row'],
+  ['Around the body pass', 'Medvedek na mestu']];
 const BUILTIN = [
-  { id: 'vodena-vadba-2-seta', rev: 5, name: 'Vodena vadba', prep: 10,
+  { id: 'vodena-vadba-2-seta', rev: 6, name: 'Vodena vadba', prep: 10,
     // popravek za naprave, kjer je uporabnik trening že sam urejal: spremeni samo ti dve številki
     patch: (w, from) => {
       if (from < 3 && w.steps.length === 5) w.steps[4].rest = 60;
       if (from < 4) w.pause = 150;
+      if (from < 6 && w.steps.length === 5) DUO.forEach((x, i) => { Object.assign(w.steps[i], { a: x[0], b: x[1], sideA: false, sideB: false }); });
       if (from < 5 && w.warm && w.warm.count === 19) { w.warm.names = WARM.map(x => x[0]); w.warm.sides = WARM.map(x => !!x[1]); }
     },
     warm: { count: 19, work: 30, names: WARM.map(x => x[0]), sides: WARM.map(x => !!x[1]) }, warmRest: 90, rounds: 3, swap: true, pause: 150,
-    steps: [
-      step('Mrtvi dvig s kettlebellom ob eni strani', 'Front počep s štango', 40, 20, true),
-      step('Kroženje KB okoli glave na kolenih', 'Pokončno veslanje s štango', 40, 20),
-      step('Mountain climber z dlanmi na medicinki', 'Izmenični thruster z ročkama', 40, 40),
-      step('Triceps izteg s kettlebellom za glavo', 'Ozki potisk z ročkama leže na tleh', 40, 20),
-      step('Goblet počep s kettlebellom z 2s zadržkom spodaj', 'Hollow hold', 40, 60),
-    ] },
+    steps: DUO.map((x, i) => step(x[0], x[1], 40, [20, 20, 40, 20, 60][i])) },
   { id: 'serije-5x2', rev: 2, name: 'Trening v serijah', prep: 10,
     patch: (w, from) => { if (from < 2 && w.steps.length === 10) PARI.forEach((x, i) => { w.steps[i].a = x[0]; w.steps[i].sideA = !!x[1]; }); },
     warm: { count: 19, work: 30, names: WARM.map(x => x[0]), sides: WARM.map(x => !!x[1]) }, warmRest: 90,
