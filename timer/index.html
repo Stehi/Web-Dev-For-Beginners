@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1420">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sweat o'Clock">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); box-sizing: border-box; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<title>Sweat o'Clock</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Big+Shoulders+Display:wght@700;900&display=swap">
+<style>
+/* Layout: seznam treningov kot delovni list; časovnik je cel zaslon, ki ga barva faze zapolni do roba, da se vidi čez telovadnico. */
+:root {
+  color-scheme: dark;
+  --ink: #0f1420;        /* ozadje in besedilo na barvnih fazah */
+  --panel: #19202f;
+  --line: #2c3548;
+  --paper: #eef1f6;
+  --muted: #98a2b8;
+  --work: #ff6b1a;       /* vaja */
+  --rest: #35c2cc;       /* odmor */
+  --prep: #ffd338;       /* priprava */
+  --danger: #ff5a6a;
+  --display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+html, body { height: 100%; }
+body {
+  background: var(--ink); color: var(--paper);
+  font-family: var(--body); font-size: 1rem; line-height: 1.45;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; border: 0; background: none; }
+:focus-visible { outline: 3px solid var(--paper); outline-offset: 2px; }
+
+.wrap {
+  max-width: 44rem; margin: 0 auto;
+  padding-block: 1.5rem 3rem;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 1.25rem;
+}
+h1 {
+  font-family: var(--display); font-weight: 900; font-size: 2.6rem; line-height: 1;
+  text-transform: uppercase; letter-spacing: .01em; margin: 0; text-wrap: balance;
+}
+h1 span { color: var(--work); }
+.lead { color: var(--muted); margin: 0; max-width: 60ch; }
+.head-row { display: flex; flex-wrap: wrap; gap: .75rem 1rem; align-items: end; justify-content: space-between; }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+  min-height: 2.75rem; padding: 0 1.1rem; border-radius: .5rem;
+  font-weight: 600; border: 1px solid var(--line); background: var(--panel);
+}
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--work); border-color: var(--work); color: var(--ink); font-weight: 700; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.danger { color: var(--danger); }
+.btn.small { min-height: 2.25rem; padding: 0 .75rem; font-size: .9rem; }
+
+/* Seznam treningov */
+.list { display: flex; flex-direction: column; gap: .75rem; list-style: none; margin: 0; padding: 0; }
+.workout {
+  background: var(--panel); border: 1px solid var(--line); border-radius: .75rem;
+  padding: 1rem; display: flex; flex-wrap: wrap; gap: .75rem 1rem; align-items: center;
+}
+.workout .info { flex: 1 1 14rem; min-width: 0; }
+.workout h2 { font-family: var(--display); font-weight: 700; font-size: 1.6rem; line-height: 1.1; margin: 0 0 .2rem; text-transform: uppercase; overflow-wrap: anywhere; }
+.workout p { margin: 0; color: var(--muted); font-size: .95rem; font-variant-numeric: tabular-nums; }
+.facts { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .1rem .9rem; margin: .35rem 0 0; font-size: .95rem; font-variant-numeric: tabular-nums; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; font-weight: 600; }
+.workout .tag { display: inline-block; font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); background: var(--prep); border-radius: .25rem; padding: .05rem .4rem; margin-bottom: .35rem; }
+.workout .actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+.hint { color: var(--muted); font-size: .9rem; margin: 0; }
+kbd { font-family: var(--body); font-size: .8rem; border: 1px solid var(--line); border-radius: .3rem; padding: 0 .35rem; background: var(--panel); }
+
+/* Urejevalnik */
+form { display: flex; flex-direction: column; gap: 1.25rem; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: .75rem; align-items: end; }
+label { display: flex; flex-direction: column; gap: .3rem; font-size: .8rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+input {
+  min-height: 2.75rem; padding: 0 .75rem; border-radius: .5rem; min-width: 0; width: 100%; box-sizing: border-box;
+  background: var(--ink); border: 1px solid var(--line); color: var(--paper); font-size: 1rem; font-weight: 500;
+}
+input:focus { border-color: var(--work); outline: none; }
+input[type="checkbox"] { width: 1.35rem; height: 1.35rem; min-height: 0; padding: 0; flex: none; accent-color: var(--work); }
+label.check { flex-direction: row; align-items: center; gap: .5rem; text-transform: none; letter-spacing: 0; font-size: .95rem; font-weight: 500; color: var(--paper); }
+fieldset { border: 1px solid var(--line); border-radius: .75rem; padding: 1rem; margin: 0; display: flex; flex-direction: column; gap: .75rem; min-width: 0; }
+legend { font-family: var(--display); font-weight: 700; font-size: 1.2rem; text-transform: uppercase; padding: 0 .4rem; }
+#ed-steps { display: flex; flex-direction: column; gap: .6rem; }
+.step { border: 1px solid var(--line); border-radius: .5rem; padding: .6rem; display: flex; flex-direction: column; gap: .45rem; background: var(--panel); }
+.step .line { display: grid; grid-template-columns: 2.6rem minmax(0, 1fr) auto; gap: .5rem; align-items: center; }
+.step .tag { font-size: .7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.step .tag.n { font-family: var(--display); font-size: 1.3rem; color: var(--paper); }
+.side { flex-direction: row; align-items: center; gap: .3rem; font-size: 1rem; color: var(--paper); letter-spacing: 0; }
+.step .nums { display: grid; grid-template-columns: 2.6rem 1fr 1fr 2.75rem; gap: .5rem; align-items: end; }
+.step .del { min-height: 2.75rem; border-radius: .5rem; border: 1px solid var(--line); color: var(--muted); font-size: 1.1rem; }
+.step .del:hover { color: var(--danger); border-color: var(--danger); }
+#ed-wlist { display: flex; flex-direction: column; gap: .4rem; }
+.wrow { display: grid; grid-template-columns: 1.8rem minmax(0, 1fr) auto; gap: .5rem; align-items: center; }
+.wrow .n { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.form-actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+.form-actions .spacer { flex: 1; }
+.error { color: var(--danger); margin: 0; font-weight: 600; }
+
+/* Časovnik */
+#timer {
+  --phase: var(--panel); --on: var(--paper);
+  position: fixed; inset: 0; z-index: 20;
+  background: var(--phase); color: var(--on);
+  transition: background-color .25s;
+  display: flex; flex-direction: column;
+  padding-top: max(.75rem, env(safe-area-inset-top, 0px));
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+#timer[data-kind="work"] { --phase: var(--work); --on: var(--ink); }
+#timer[data-kind="rest"] { --phase: var(--rest); --on: var(--ink); }
+#timer[data-kind="prep"] { --phase: var(--prep); --on: var(--ink); }
+#timer[data-kind="done"] { --phase: var(--paper); --on: var(--ink); }
+#timer.paused .clock { opacity: .45; }
+.t-top { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.t-name { font-weight: 700; text-transform: uppercase; letter-spacing: .06em; font-size: .9rem; min-width: 0; overflow-wrap: anywhere; flex: 1; }
+.t-btn { min-height: 2.5rem; padding: 0 .8rem; border-radius: .5rem; font-weight: 700; border: 2px solid currentColor; white-space: nowrap; }
+.t-exit { min-height: 2.25rem; padding: 0 .4rem; font-size: .8rem; font-weight: 600; opacity: .55; white-space: nowrap; }
+.t-exit.armed { opacity: 1; font-weight: 700; border: 2px solid currentColor; border-radius: .5rem; padding: 0 .7rem; }
+.t-main { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.phase { font-weight: 700; letter-spacing: .2em; text-transform: uppercase; font-size: clamp(1rem, 3.5vw, 1.6rem); min-height: 1.5em; }
+.exercise { font-family: var(--display); font-weight: 900; text-transform: uppercase; line-height: 1; font-size: clamp(2rem, 9vw, 5.5rem); text-wrap: balance; overflow-wrap: anywhere; }
+.clock { font-family: var(--display); font-weight: 900; line-height: .9; font-size: min(46vw, 46vh); white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: -.01em; transition: opacity .2s; }
+.clock.last3 { animation: pulse 1s ease-out infinite; }
+@keyframes pulse { 0% { transform: scale(1.08); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .clock.last3 { animation: none; } #timer { transition: none; } }
+.meta { display: flex; flex-wrap: wrap; justify-content: center; gap: .25rem 1.5rem; font-weight: 700; font-size: clamp(1rem, 3.2vw, 1.5rem); font-variant-numeric: tabular-nums; }
+.next { font-weight: 500; font-size: clamp(.95rem, 2.8vw, 1.3rem); margin-top: .4rem; overflow-wrap: anywhere; }
+
+/* Pregled kroga: pike = krogi, segmenti = vaje v krogu */
+.segs { display: flex; align-items: center; gap: .7rem; width: 100%; max-width: 26rem; margin-top: .6rem; min-height: 1rem; }
+.segs .dots { display: flex; gap: .3rem; }
+.segs .dots i { width: .75rem; height: .75rem; border-radius: 50%; border: 2px solid var(--on); box-sizing: border-box; }
+.segs .dots i.done { background: var(--on); }
+.segs .dots i.cur { background: color-mix(in srgb, var(--on) 45%, transparent); }
+.segs .steps { display: flex; gap: 3px; flex: 1; align-items: center; }
+.segs .steps i { flex: 1; height: .4rem; border-radius: .2rem; background: color-mix(in srgb, var(--on) 22%, transparent); }
+.segs .steps i.done { background: var(--on); }
+.segs .steps i.cur { background: var(--on); height: 1rem; }
+
+/* Vaje pod odštevanjem */
+.rows { display: flex; flex-direction: column; gap: .3rem; width: 100%; max-width: 46rem; margin-top: .6rem; }
+.rows .title { font-weight: 700; letter-spacing: .2em; text-transform: uppercase; font-size: .85rem; }
+.rows .row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .7rem; align-items: baseline; text-align: left; padding-top: .3rem; border-top: 2px solid color-mix(in srgb, var(--on) 25%, transparent); }
+.rows .row.solo { grid-template-columns: minmax(0, 1fr); text-align: center; }
+.rows .g { font-weight: 700; font-size: .75rem; letter-spacing: .08em; text-transform: uppercase; white-space: nowrap; }
+.rows .n { font-family: var(--display); font-weight: 900; text-transform: uppercase; line-height: 1.05; font-size: clamp(1.25rem, 5.2vw, 2.6rem); overflow-wrap: anywhere; }
+@media (max-height: 480px) { .rows { margin-top: .2rem; gap: .1rem; } .rows .n { font-size: 1.1rem; } .rows .title, .segs { display: none; } }
+
+.toast { position: absolute; left: 50%; top: 4.2rem; transform: translateX(-50%); width: max-content; max-width: calc(100% - 2rem); box-sizing: border-box; background: var(--ink); color: var(--paper); padding: .6rem .9rem; border-radius: .5rem; font-weight: 600; font-size: .95rem; text-align: center; z-index: 2; }
+.bar { height: .5rem; border-radius: .25rem; background: color-mix(in srgb, var(--on) 20%, transparent); overflow: hidden; margin: .9rem 0; }
+.bar i { display: block; height: 100%; width: 0; background: var(--on); }
+.t-controls { display: flex; align-items: center; justify-content: center; gap: .75rem; }
+.t-controls .t-btn { min-height: 3.5rem; min-width: 3.5rem; font-size: 1.3rem; }
+.t-controls .go {
+  flex: 0 1 16rem; min-height: 4.5rem; border-radius: .75rem; border: 0;
+  background: var(--on); color: var(--phase);
+  font-family: var(--display); font-weight: 900; font-size: 2.2rem; text-transform: uppercase; letter-spacing: .04em;
+}
+#timer[data-kind="idle"] .go { background: var(--work); color: var(--ink); }
+</style>
+
+<!-- Seznam treningov -->
+<main class="wrap" id="home">
+  <div class="head-row">
+    <h1>Sweat <span>o'Clock</span></h1>
+    <span class="hint">Različica 23</span>
+  </div>
+  <p class="lead">Izberi trening in pritisni Start. Pred začetkom vaje zapiska pri 2 in 1, nato dolg pisk za start; ob koncu vaje se oglasi samo pisk za konec. Pri vajah, označenih z ↔, se na polovici oglasi tril za menjavo strani.</p>
+  <ul class="list" id="list"></ul>
+  <div><button class="btn" id="btn-new" type="button">+ Nov trening</button></div>
+  <p class="hint">Med vadbo: <kbd>preslednica</kbd> start / pavza · <kbd>→</kbd> naslednja faza · <kbd>←</kbd> nazaj · <kbd>Esc</kbd> končaj. Telefon naj ostane odklenjen s to aplikacijo na zaslonu, sicer piski utihnejo.</p>
+</main>
+
+<!-- Urejevalnik -->
+<main class="wrap" id="editor" hidden>
+  <h1 id="ed-title">Uredi trening</h1>
+  <form id="ed-form" novalidate>
+    <div class="grid">
+      <label for="ed-name">Ime treninga<input id="ed-name" type="text" maxlength="60" autocomplete="off"></label>
+      <label for="ed-prep">Priprava pred startom (s)<input id="ed-prep" type="number" inputmode="numeric" min="3" max="600"></label>
+    </div>
+
+    <fieldset>
+      <legend>Ogrevanje</legend>
+      <div class="grid">
+        <label for="ed-wcount">Število vaj (0 = brez)<input id="ed-wcount" type="number" inputmode="numeric" min="0" max="99"></label>
+        <label for="ed-wwork">Čas vaje (s)<input id="ed-wwork" type="number" inputmode="numeric" min="1" max="3600"></label>
+        <label for="ed-wrest">Premor po ogrevanju (s)<input id="ed-wrest" type="number" inputmode="numeric" min="0" max="3600"></label>
+      </div>
+      <div id="ed-wlist-wrap" style="display:flex;flex-direction:column;gap:.6rem">
+        <p class="hint">Imena ogrevalnih vaj (lahko prilepiš cel seznam v prvo polje; vrstica, ki se konča z »JA«, dobi kljukico). Kljukica ↔ pomeni tril za menjavo strani na polovici.</p>
+        <div id="ed-wlist"></div>
+        <div style="display:flex;gap:.5rem"><button class="btn small" id="ed-wall" type="button">↔ Vse</button><button class="btn small" id="ed-wnone" type="button">↔ Nobena</button></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Vaje v krogu</legend>
+      <p class="hint">Seznam vaj lahko prilepiš v prvo polje skupine – vsaka vrstica gre v svojo vajo. Polje »Sk. 2« pusti prazno, če vadi ena skupina. Kljukica ↔ pomeni tril za menjavo strani na polovici vaje. Odmor pri zadnji vaji je odmor med krogi. Če spodaj nastaviš »Vaj v seriji«, se vaje po vrsti razdelijo v serije; vsaka serija se ponovi tolikokrat, kot je krogov.</p>
+      <div id="ed-steps"></div>
+      <div><button class="btn small" id="ed-add" type="button">+ Dodaj vajo</button></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Krogi in deli</legend>
+      <div class="grid">
+        <label for="ed-rounds">Število krogov<input id="ed-rounds" type="number" inputmode="numeric" min="1" max="99"></label>
+        <label for="ed-group">Vaj v seriji (0 = vse v enem krogu)<input id="ed-group" type="number" inputmode="numeric" min="0" max="99"></label>
+        <label for="ed-srest">Pavza po seriji (s)<input id="ed-srest" type="number" inputmode="numeric" min="0" max="3600"></label>
+        <label for="ed-pause">Pavza med deloma (s)<input id="ed-pause" type="number" inputmode="numeric" min="0" max="3600"></label>
+      </div>
+      <label class="check" for="ed-swap"><input id="ed-swap" type="checkbox"> Dva dela s pavzo vmes – v drugem delu skupini zamenjata vaje</label>
+    </fieldset>
+
+    <p class="error" id="ed-error" hidden></p>
+    <div class="form-actions">
+      <button class="btn primary" type="submit">Shrani</button>
+      <button class="btn" id="ed-cancel" type="button">Prekliči</button>
+      <span class="spacer"></span>
+      <button class="btn" id="ed-copy" type="button">Podvoji</button>
+      <button class="btn danger" id="ed-delete" type="button">Izbriši</button>
+    </div>
+  </form>
+</main>
+
+<!-- Časovnik -->
+<section id="timer" data-kind="idle" hidden>
+  <div class="t-top">
+    <div class="t-name" id="t-name"></div>
+    <button class="t-exit" id="t-exit" type="button">✕ Končaj</button>
+  </div>
+  <div class="toast" id="t-toast" hidden></div>
+  <div class="t-main">
+    <div class="phase" id="t-phase"></div>
+    <div class="exercise" id="t-ex"></div>
+    <div class="clock" id="t-clock"></div>
+    <div class="meta"><span id="t-set"></span><span id="t-total"></span></div>
+    <div class="segs" id="t-segs" hidden><div class="dots" id="t-dots"></div><div class="steps" id="t-steps"></div></div>
+    <div class="next" id="t-next"></div>
+    <div class="rows" id="t-rows" hidden></div>
+  </div>
+  <div class="bar"><i id="t-bar"></i></div>
+  <div class="t-controls">
+    <button class="t-btn" id="t-prev" type="button" aria-label="Prejšnja faza">⏮</button>
+    <button class="go" id="t-go" type="button">Start</button>
+    <button class="t-btn" id="t-skip" type="button" aria-label="Naslednja faza">⏭</button>
+  </div>
+</section>
+
+<script>
+/* ---------- Vgrajeni treningi ----------
+   Model: ogrevanje (count × work), premor, nato krogi vaj. Vsaka vaja ima ime za skupino 1 (a) in po želji skupino 2 (b),
+   čas, odmor po vaji in oznako menjave strani. Z »swap« sledi po pavzi drugi del, kjer skupini zamenjata vaje.
+   Ko se vgrajeni trening spremeni v kodi, povečaj rev – naprave, kjer ga uporabnik ni sam urejal, dobijo novo različico. */
+const step = (a, b, work, rest, sideA = false, sideB = false) => ({ a, b, work, rest, sideA, sideB });
+// Ogrevanje: [ime, tril za menjavo strani na polovici]
+const WARM = [['Glava', 1], ['Rame', 1], ['Komolci', 1], ['Zapestja', 1], ['Roke'], ['Boki', 1], ['Telo na stran'], ['Telo gor dol'], ['Telo krožiš', 1],
+  ['Izpadni dotik stopala'], ['Izpadni stranski'], ['Izpadni naprej'], ['Rahel skiping'], ['Počep'], ['Jumping jacks'], ['Komolec koleno'], ['Metuljček sede'], ['Visok plank'], ['Strešica']];
+// Trening v serijah: 5 parov vaj [ime, tril za menjavo strani na polovici]
+const PARI = [['Počep s kettlebellom v racku na eni rami', 1], ['Renegade row z ročkama'],
+  ['Sumo mrtvi dvig s štango'], ['Skull crusher z ročkama leže na tleh, nevtralen prijem'],
+  ['Push press s štango'], ['Bolgarski izpadni korak z ročkami, zadnja noga na medicinki', 1],
+  ['Crush grip curl s kettlebellom'], ['Burpee z 2x zibanjem v počepu'],
+  ['Dvig medenice s kettlebellom na kolkih izmenično noge'], ['Plank jack z dotikom ramena']];
+// Vodena vadba: pari vaj [skupina 1, skupina 2]
+const DUO = [
+  ['Goblet squat with heartbeat', 'B-stance Romanian deadlift'],
+  ['Kettlebell pullover (Na hrbtu ravne roke dvig KB)', 'Chest fly z ročkama leže na tleh'],
+  ['Dead-stop swing (Med noge gr odložiš skor)', 'Izpadni korak nazaj z ročkama in dvigom kolena'],
+  ['Bottoms-up press', 'Upright row'],
+  ['Around the body pass', 'Medvedek na mestu']];
+const BUILTIN = [
+  { id: 'vodena-vadba-2-seta', rev: 6, name: 'Vodena vadba', prep: 10,
+    // popravek za naprave, kjer je uporabnik trening že sam urejal: spremeni samo ti dve številki
+    patch: (w, from) => {
+      if (from < 3 && w.steps.length === 5) w.steps[4].rest = 60;
+      if (from < 4) w.pause = 150;
+      if (from < 6 && w.steps.length === 5) DUO.forEach((x, i) => { Object.assign(w.steps[i], { a: x[0], b: x[1], sideA: false, sideB: false }); });
+      if (from < 5 && w.warm && w.warm.count === 19) { w.warm.names = WARM.map(x => x[0]); w.warm.sides = WARM.map(x => !!x[1]); }
+    },
+    warm: { count: 19, work: 30, names: WARM.map(x => x[0]), sides: WARM.map(x => !!x[1]) }, warmRest: 90, rounds: 3, swap: true, pause: 150,
+    steps: DUO.map((x, i) => step(x[0], x[1], 40, [20, 20, 40, 20, 60][i])) },
+  { id: 'serije-5x2', rev: 2, name: 'Trening v serijah', prep: 10,
+    patch: (w, from) => { if (from < 2 && w.steps.length === 10) PARI.forEach((x, i) => { w.steps[i].a = x[0]; w.steps[i].sideA = !!x[1]; }); },
+    warm: { count: 19, work: 30, names: WARM.map(x => x[0]), sides: WARM.map(x => !!x[1]) }, warmRest: 90,
+    rounds: 3, group: 2, seriesRest: 120, swap: false, pause: 0,
+    steps: PARI.map(x => step(x[0], '', 40, 20, !!x[1])) },
+  { id: 'primer-krozni', rev: 2, example: true, name: 'Krožni trening', prep: 10,
+    warm: { count: 0, work: 30, side: false }, warmRest: 0, rounds: 3, swap: false, pause: 0,
+    steps: ['Počepi', 'Sklece', 'Izpadni koraki', 'Plank', 'Poskoki', 'Trebušnjaki'].map((n, i) => step(n, '', 40, i < 5 ? 20 : 60)) },
+  { id: 'primer-tabata', rev: 2, example: true, name: 'Tabata 20 / 10', prep: 10,
+    warm: { count: 0, work: 30, side: false }, warmRest: 0, rounds: 8, swap: false, pause: 0,
+    steps: [step('Burpees', '', 20, 10)] },
+];
+
+/* ---------- Shramba ---------- */
+const KEY = 'intervalni-casovnik.v1';
+let store = { workouts: [], deleted: [] }, patched = false;
+try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && Array.isArray(s.workouts)) store = { workouts: s.workouts, deleted: s.deleted || [] }; } catch (e) {}
+(function migrate() {
+  const builtinIds = BUILTIN.map(b => b.id), custom = [], kept = {};
+  for (const w of store.workouts) {
+    if (builtinIds.includes(w.id)) { if (Array.isArray(w.steps)) kept[w.id] = w; continue; }
+    if (Array.isArray(w.steps)) custom.push(w);
+    else if (Array.isArray(w.exercises)) custom.push({ // star zapis: seti × vaje
+      id: w.id, name: w.name, prep: w.prep || 10, warm: { count: 0, work: 30, side: false }, warmRest: 0,
+      rounds: w.sets || 1, swap: false, pause: 0,
+      steps: w.exercises.map((e, i) => step(e.name, '', e.work, i < w.exercises.length - 1 ? (w.rest || 0) : (w.setRest || 0))) });
+  }
+  const built = [];
+  for (const b of BUILTIN) {
+    const s = kept[b.id];
+    if (s && s.edited && (s.rev || 0) < b.rev && b.patch) { b.patch(s, s.rev || 0); s.rev = b.rev; patched = true; }
+    if (s && (s.edited || (s.rev || 0) >= b.rev)) built.push(s);
+    else if (s || !store.deleted.includes(b.id)) built.push(JSON.parse(JSON.stringify(b)));
+  }
+  store.workouts = [...built, ...custom];
+})();
+function persist() { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} }
+if (patched) persist(); // popravek se zapiše, da se ob naslednjem odprtju ne ponovi
+
+/* ---------- Pomožne ---------- */
+const $ = id => document.getElementById(id);
+const fmt = s => { s = Math.max(0, Math.round(s)); const m = Math.floor(s / 60), r = s % 60; return m + ':' + String(r).padStart(2, '0'); };
+const clockFmt = s => s >= 60 ? fmt(s) : String(s);
+function plural(n, one, two, few, many) { const m = n % 100; return n + ' ' + (m === 1 ? one : m === 2 ? two : (m === 3 || m === 4) ? few : many); }
+function mk(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+function warmSides(w) {
+  const n = w.warm ? w.warm.count : 0, s = w.warm && w.warm.sides;
+  return Array.from({ length: n }, (_, i) => Array.isArray(s) ? !!s[i] : !!(w.warm && w.warm.side));
+}
+function warmNames(w) { const n = w.warm ? w.warm.count : 0, a = (w.warm && w.warm.names) || []; return Array.from({ length: n }, (_, i) => (a[i] || '').trim()); }
+const seriesSize = w => (w.group > 0 && w.group < w.steps.length ? w.group : w.steps.length);
+function buildSeq(w) {
+  const seq = [{ kind: 'prep', dur: Math.max(3, w.prep || 10), title: 'Pripravi se' }];
+  const two = w.steps.some(s => (s.b || '').trim());
+  seq.two = two;
+  const wc = w.warm ? w.warm.count : 0, ws = warmSides(w), wn = warmNames(w);
+  for (let i = 0; i < wc; i++) seq.push({ kind: 'work', dur: w.warm.work, title: 'Ogrevanje', side: ws[i], names: wn[i] ? [wn[i]] : undefined, sides: [ws[i]], solo: true, setText: (i + 1) + ' / ' + wc, segN: wc, segI: i, rN: 0, rI: 0 });
+  if (wc > 0 && w.warmRest > 0) seq.push({ kind: 'rest', dur: w.warmRest, title: 'Premor' });
+  // serije: vaje se razdelijo v skupine po w.group vaj; vsaka serija se ponovi w.rounds-krat, po njej sledi w.seriesRest
+  const parts = w.swap ? 2 : 1, n = w.steps.length, g = seriesSize(w), chunks = Math.ceil(n / g);
+  for (let pi = 0; pi < parts; pi++) for (let c = 0; c < chunks; c++) for (let r = 0; r < w.rounds; r++) w.steps.slice(c * g, c * g + g).forEach((st, k, chunk) => {
+    const i = c * g + k;
+    const a = (st.a || '').trim() || 'Vaja ' + (i + 1), b = (st.b || '').trim();
+    const flip = pi === 1 && two;
+    const names = !two ? [a] : flip ? [b, a] : [a, b];
+    const sides = !two ? [!!st.sideA] : flip ? [!!st.sideB && !!b, !!st.sideA] : [!!st.sideA, !!st.sideB && !!b];
+    seq.push({ kind: 'work', dur: st.work, title: 'Vaja', names, sides, side: sides.some(Boolean),
+      setText: (parts > 1 ? (pi + 1) + '. del · ' : '') + (chunks > 1 ? 'Serija ' + (c + 1) + ' / ' + chunks + ' · ' : '') + 'krog ' + (r + 1) + ' / ' + w.rounds,
+      segN: chunk.length, segI: k, rN: w.rounds, rI: r });
+    const lastOfSeries = k === chunk.length - 1 && r === w.rounds - 1;
+    if (!lastOfSeries) { if (st.rest > 0) seq.push({ kind: 'rest', dur: st.rest, title: 'Odmor' }); }
+    else if (c < chunks - 1) { if (w.seriesRest > 0) seq.push({ kind: 'rest', dur: w.seriesRest, title: 'Pavza' }); }
+    else if (pi < parts - 1 && w.pause > 0) seq.push({ kind: 'rest', dur: w.pause, title: two ? 'Pavza · menjava rekvizitov' : 'Pavza' });
+  });
+  return seq;
+}
+const totalOf = seq => seq.reduce((a, p) => a + p.dur, 0);
+function facts(w, seq) { // [oznaka, vrednost]
+  const f = [];
+  if (w.warm && w.warm.count > 0) f.push(['Ogrevanje', w.warm.count + ' × ' + w.warm.work + ' s']);
+  const g = seriesSize(w), chunks = Math.ceil(w.steps.length / g);
+  f.push(['Glavni del', (w.swap ? '2 dela × ' : '') + (chunks > 1 ? plural(chunks, 'serija', 'seriji', 'serije', 'serij') + ' × ' : '') + plural(w.rounds, 'krog', 'kroga', 'krogi', 'krogov') + ' × ' + plural(g, 'vaja', 'vaji', 'vaje', 'vaj')]);
+  if (seq.two) f.push(['Skupini', '2']);
+  f.push(['Skupaj', fmt(totalOf(seq) - seq[0].dur)]);
+  return f;
+}
+const summary = (w, seq) => facts(w, seq).map(([k, v]) => k === 'Skupini' ? '2 skupini' : k + ' ' + v).join(' · ');
+
+/* ---------- Zvok ---------- */
+let actx = null;
+function audio() {
+  if (!actx) { const AC = window.AudioContext || window.webkitAudioContext; if (AC) actx = new AC(); }
+  if (actx && actx.state === 'suspended') actx.resume();
+  return actx;
+}
+function tone(freq, dur, delay = 0, vol = 0.5, type = 'square') {
+  const a = audio(); if (!a) return;
+  const t = a.currentTime + delay, o = a.createOscillator(), g = a.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+  g.gain.setValueAtTime(vol, t + dur - 0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.02);
+}
+const beepShort = () => tone(880, 0.16);            // 3 … 2 … 1
+const beepStart = () => tone(1320, 0.7);            // START vaje
+const beepRest = () => { tone(660, 0.25); tone(440, 0.45, 0.25); }; // konec vaje, začetek odmora
+const beepDone = () => { tone(660, 0.2); tone(880, 0.2, 0.22); tone(1320, 0.7, 0.44); };
+// Polovica vaje: hiter tril, drugačen od vseh ostalih piskov
+let halfTimer = null;
+function halfCue() {
+  for (let i = 0; i < 6; i++) tone(i % 2 ? 1175 : 1760, 0.09, i * 0.09, 0.6, 'sine');
+  const ph = $('t-phase'); ph.textContent = '↔ Menjava strani';
+  clearTimeout(halfTimer); halfTimer = setTimeout(() => { ph.textContent = ''; }, 4000);
+}
+
+/* ---------- Pogledi ---------- */
+function show(view) { for (const v of ['home', 'editor', 'timer']) $(v).hidden = v !== view; window.scrollTo(0, 0); }
+
+function renderList() {
+  const ul = $('list'); ul.textContent = '';
+  for (const w of store.workouts) {
+    const seq = buildSeq(w), li = mk('li', 'workout'), info = mk('div', 'info');
+    if (w.example) info.append(mk('span', 'tag', 'Primer'));
+    const dl = mk('dl', 'facts'); for (const [k, v] of facts(w, seq)) dl.append(mk('dt', '', k), mk('dd', '', v));
+    info.append(mk('h2', '', w.name), dl);
+    const act = mk('div', 'actions');
+    const open = mk('button', 'btn primary', 'Odpri'); open.type = 'button'; open.onclick = () => openTimer(w);
+    const edit = mk('button', 'btn', 'Uredi'); edit.type = 'button'; edit.onclick = () => openEditor(w);
+    act.append(open, edit); li.append(info, act); ul.append(li);
+  }
+  if (!store.workouts.length) ul.append(mk('li', 'hint', 'Ni shranjenih treningov. Dodaj prvega z gumbom spodaj.'));
+}
+
+/* ---------- Urejevalnik ---------- */
+let editing = null, delArmed = false;
+const cleanName = s => s.replace(/[​-‍⁠﻿]/g, '').replace(/^\s*(?:[•\-–*]+|\d+[.)])\s*/, '').trim();
+function stepRow(st) {
+  const row = mk('div', 'step');
+  const line = (tag, cls, val, flag, label) => {
+    const l = mk('div', 'line'), t = mk('span', 'tag' + (tag === '' ? ' n' : ''), tag);
+    const name = mk('input', cls); name.type = 'text'; name.maxLength = 70; name.value = val || ''; name.setAttribute('aria-label', label); name.autocomplete = 'off';
+    const side = mk('label', 'side'), cb = mk('input', cls + '-side'); cb.type = 'checkbox'; cb.checked = !!flag; cb.setAttribute('aria-label', label + ': menjava strani na polovici');
+    side.append(cb, document.createTextNode('↔')); l.append(t, name, side);
+    name.addEventListener('paste', e => {
+      const lines = (e.clipboardData.getData('text') || '').split(/\r?\n/).map(cleanName).filter(Boolean);
+      if (lines.length < 2) return;
+      e.preventDefault();
+      let r = row;
+      lines.forEach((text, i) => {
+        if (i > 0) { if (!r.nextElementSibling) addStep(); r = r.nextElementSibling; }
+        r.querySelector('.' + cls).value = text;
+      });
+    });
+    return l;
+  };
+  const la = line('', 'ex-a', st.a, st.sideA, 'Vaja skupine 1');
+  const lb = line('Sk. 2', 'ex-b', st.b, st.sideB, 'Vaja skupine 2');
+  const nums = mk('div', 'nums');
+  const num = (cls, text, val, min) => { const l = mk('label', '', text), i = mk('input', cls); i.type = 'number'; i.inputMode = 'numeric'; i.min = min; i.max = 3600; i.value = val; l.append(i); return l; };
+  const del = mk('button', 'del', '✕'); del.type = 'button'; del.setAttribute('aria-label', 'Odstrani vajo');
+  del.onclick = () => { row.remove(); renumber(); };
+  nums.append(mk('span'), num('ex-work', 'Vaja (s)', st.work, 1), num('ex-rest', 'Odmor po vaji (s)', st.rest, 0), del);
+  row.append(la, lb, nums); return row;
+}
+function renumber() {
+  const g = parseInt($('ed-group').value, 10) || 0; // vaje iste serije stojijo skupaj, med serijami je večji razmik
+  [...$('ed-steps').children].forEach((r, i) => { r.querySelector('.tag.n').textContent = i + 1; r.style.marginTop = g > 0 && i > 0 && i % g === 0 ? '1.1rem' : ''; });
+}
+$('ed-group').addEventListener('input', renumber);
+function addStep() {
+  const rows = $('ed-steps').children, last = rows[rows.length - 1];
+  const r = stepRow(step('', '', last ? last.querySelector('.ex-work').value : 40, last ? last.querySelector('.ex-rest').value : 20));
+  $('ed-steps').append(r); renumber(); return r;
+}
+function renderWarm(names, sides) {
+  const box = $('ed-wlist'); box.textContent = '';
+  names.forEach((name, i) => {
+    const row = mk('div', 'wrow'), inp = mk('input', 'w-name'); inp.type = 'text'; inp.maxLength = 50; inp.value = name; inp.autocomplete = 'off';
+    inp.setAttribute('aria-label', 'Ime ogrevalne vaje ' + (i + 1));
+    const side = mk('label', 'side'), cb = mk('input', 'w-side'); cb.type = 'checkbox'; cb.checked = !!sides[i]; cb.setAttribute('aria-label', 'Ogrevalna vaja ' + (i + 1) + ': tril na polovici');
+    side.append(cb, document.createTextNode('↔'));
+    inp.addEventListener('paste', e => {
+      const lines = (e.clipboardData.getData('text') || '').split(/\r?\n/).map(cleanName).filter(Boolean);
+      if (lines.length < 2) return;
+      e.preventDefault();
+      const st = warmState(Math.max(names.length, i + lines.length));
+      lines.forEach((t, k) => { const ja = /\s+JA\s*$/i.test(t); st.names[i + k] = t.replace(/\s+JA\s*$/i, ''); st.sides[i + k] = ja; });
+      $('ed-wcount').value = st.names.length; renderWarm(st.names, st.sides);
+    });
+    row.append(mk('span', 'n', i + 1), inp, side); box.append(row);
+  });
+  $('ed-wlist-wrap').hidden = !names.length;
+}
+function warmState(n) {
+  const rows = [...$('ed-wlist').children];
+  return { names: Array.from({ length: n }, (_, i) => rows[i] ? cleanName(rows[i].querySelector('.w-name').value) : ''),
+           sides: Array.from({ length: n }, (_, i) => rows[i] ? rows[i].querySelector('.w-side').checked : false) };
+}
+$('ed-wcount').addEventListener('input', () => { const st = warmState(Math.min(99, Math.max(0, parseInt($('ed-wcount').value, 10) || 0))); renderWarm(st.names, st.sides); });
+$('ed-wall').onclick = () => $('ed-wlist').querySelectorAll('.w-side').forEach(c => { c.checked = true; });
+$('ed-wnone').onclick = () => $('ed-wlist').querySelectorAll('.w-side').forEach(c => { c.checked = false; });
+function openEditor(w) {
+  editing = w || null;
+  const d = w || { name: '', prep: 10, warm: { count: 0, work: 30, side: true }, warmRest: 60, rounds: 3, swap: false, pause: 240, steps: [step('', '', 40, 20)] };
+  $('ed-title').textContent = w ? 'Uredi trening' : 'Nov trening';
+  $('ed-name').value = d.name; $('ed-prep').value = d.prep || 10;
+  $('ed-wcount').value = d.warm.count; $('ed-wwork').value = d.warm.work; $('ed-wrest').value = d.warmRest; renderWarm(warmNames(d), warmSides(d));
+  $('ed-rounds').value = d.rounds; $('ed-group').value = d.group || 0; $('ed-srest').value = d.seriesRest || 0; $('ed-pause').value = d.pause; $('ed-swap').checked = !!d.swap;
+  const box = $('ed-steps'); box.textContent = ''; d.steps.forEach(s => box.append(stepRow(s))); renumber();
+  $('ed-error').hidden = true; $('ed-delete').hidden = !w; $('ed-copy').hidden = !w; $('ed-delete').textContent = 'Izbriši'; delArmed = false;
+  show('editor');
+}
+$('ed-add').onclick = () => addStep().querySelector('.ex-a').focus();
+$('ed-cancel').onclick = () => show('home');
+$('ed-delete').onclick = () => {
+  if (!delArmed) { delArmed = true; $('ed-delete').textContent = 'Res izbriši?'; return; }
+  store.workouts = store.workouts.filter(w => w !== editing); store.deleted.push(editing.id);
+  persist(); renderList(); show('home');
+};
+$('ed-copy').onclick = () => {
+  const c = JSON.parse(JSON.stringify(editing));
+  c.id = 'w' + Date.now().toString(36); c.name = editing.name + ' (kopija)'; c.edited = true; delete c.example; delete c.rev;
+  store.workouts.splice(store.workouts.indexOf(editing) + 1, 0, c);
+  persist(); renderList(); openEditor(c);
+};
+$('ed-form').onsubmit = e => {
+  e.preventDefault();
+  const int = (v, min) => { v = parseInt(v, 10); return Number.isFinite(v) && v >= min ? v : null; };
+  const name = $('ed-name').value.trim(), prep = int($('ed-prep').value, 3);
+  const wcount = int($('ed-wcount').value, 0), wwork = int($('ed-wwork').value, 1), wrest = int($('ed-wrest').value, 0);
+  const rounds = int($('ed-rounds').value, 1), pause = int($('ed-pause').value, 0), group = int($('ed-group').value || 0, 0), seriesRest = int($('ed-srest').value || 0, 0);
+  const steps = [...$('ed-steps').children].map(r => ({
+    a: cleanName(r.querySelector('.ex-a').value), b: cleanName(r.querySelector('.ex-b').value),
+    sideA: r.querySelector('.ex-a-side').checked, sideB: r.querySelector('.ex-b-side').checked,
+    work: int(r.querySelector('.ex-work').value, 1), rest: int(r.querySelector('.ex-rest').value, 0) }));
+  let err = '';
+  if (!name) err = 'Vpiši ime treninga.';
+  else if (prep === null) err = 'Priprava mora trajati vsaj 3 sekunde, da se sliši 3, 2, 1.';
+  else if (wcount === null || wrest === null || (wcount > 0 && wwork === null)) err = 'Preveri številke pri ogrevanju.';
+  else if (!steps.length) err = 'Dodaj vsaj eno vajo.';
+  else if (steps.some(s => s.work === null || s.rest === null)) err = 'Vsaka vaja potrebuje čas vsaj 1 sekundo in odmor 0 ali več.';
+  else if (rounds === null || pause === null || group === null || seriesRest === null) err = 'Število krogov mora biti vsaj 1, pavza 0 ali več.';
+  if (err) { $('ed-error').textContent = err; $('ed-error').hidden = false; return; }
+  const data = { name, prep, warm: { count: wcount, work: wwork || 30, ...warmState(wcount) }, warmRest: wrest, rounds, group, seriesRest, pause, swap: $('ed-swap').checked, steps, edited: true };
+  if (editing) { Object.assign(editing, data); delete editing.example; }
+  else store.workouts.push({ id: 'w' + Date.now().toString(36), ...data });
+  persist(); renderList(); show('home');
+};
+$('btn-new').onclick = () => openEditor(null);
+
+/* ---------- Časovnik ---------- */
+const T = { w: null, seq: [], idx: -1, running: false, endAt: 0, remMs: 0, lastSec: null, total: 0, iv: null, lock: null, preview: false, hiddenAt: 0 };
+const el = $('timer');
+
+function openTimer(w) {
+  T.w = w; T.seq = buildSeq(w); T.total = totalOf(T.seq); T.idx = -1; T.running = false; T.lastSec = null;
+  $('t-name').textContent = w.name; disarmExit();
+  show('timer'); renderIdle(); $('t-go').focus();
+}
+function showRows(item, title) {
+  const box = $('t-rows'), names = item && item.names;
+  box.hidden = !names; box.textContent = ''; el.classList.toggle('has-rows', !!names);
+  if (!names) return;
+  box.append(mk('div', 'title', title));
+  names.forEach((name, i) => {
+    const two = T.seq.two && !item.solo, row = mk('div', 'row' + (two ? '' : ' solo'));
+    if (two) row.append(mk('span', 'g', 'Skupina ' + (i + 1)));
+    row.append(mk('span', 'n', (name || '—') + (item.sides[i] ? ' ↔' : ''))); box.append(row);
+  });
+}
+function showSegs(ref, done, cur) {
+  $('t-segs').hidden = !ref; if (!ref) return;
+  const dots = $('t-dots'), steps = $('t-steps'); dots.textContent = ''; steps.textContent = '';
+  for (let i = 0; i < ref.rN; i++) dots.append(mk('i', i < ref.rI ? 'done' : i === ref.rI ? 'cur' : ''));
+  for (let i = 0; i < ref.segN; i++) steps.append(mk('i', i < done ? 'done' : i === cur ? 'cur' : ''));
+}
+// Številka zapolni ves prostor, ki ostane: največja velikost, pri kateri vse še stoji na zaslonu.
+function fitSize(text) {
+  const c = $('t-clock'), m = c.parentElement; c.textContent = text;
+  let lo = 30, hi = Math.max(30, m.clientHeight);
+  for (let k = 0; k < 10; k++) {
+    const mid = (lo + hi) / 2; c.style.fontSize = mid + 'px';
+    let top = Infinity, bottom = -Infinity;
+    for (const ch of m.children) { if (ch.hidden) continue; const r = ch.getBoundingClientRect(); top = Math.min(top, r.top); bottom = Math.max(bottom, r.bottom); }
+    if (bottom - top <= m.clientHeight - 2 && c.offsetWidth <= m.clientWidth * 0.94) lo = mid; else hi = mid;
+  }
+  c.style.fontSize = Math.floor(lo) + 'px'; return Math.floor(lo);
+}
+function fitClock(text) { T.fitText = text; fitSize(text); }
+function refit() { if (el.hidden || !T.fitText) return; const c = $('t-clock'), keep = c.textContent, cap = T.fitCap || Infinity; const s = fitSize(T.fitText); c.style.fontSize = Math.min(s, cap) + 'px'; c.textContent = keep; }
+window.addEventListener('resize', () => { T.fitCap = 0; refit(); });
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(refit);
+function renderIdle() {
+  el.dataset.kind = 'idle'; el.classList.remove('paused'); showRows(null); showSegs(null);
+  $('t-phase').textContent = ''; $('t-ex').textContent = 'Pripravljeno';
+  $('t-clock').textContent = fmt(T.total - T.seq[0].dur); $('t-clock').classList.remove('last3');
+  $('t-set').textContent = summary(T.w, T.seq); $('t-total').textContent = '';
+  $('t-next').textContent = 'Pritisni Start – odštevanje ' + T.seq[0].dur + ' s, nato 2, 1 in start.';
+  $('t-bar').style.width = '0%'; $('t-go').textContent = 'Start';
+  T.fitCap = 0; fitClock(fmt(T.total - T.seq[0].dur));
+}
+function nextWork(from) { for (let i = from; i < T.seq.length; i++) if (T.seq[i].kind === 'work') return T.seq[i]; return null; }
+
+function startPhase(i, carryMs = 0, silent = false) {
+  T.idx = i; const p = T.seq[i]; clearTimeout(halfTimer); T.preview = false;
+  T.remMs = p.dur * 1000 - carryMs; T.endAt = Date.now() + T.remMs; T.lastSec = null;
+  if (!silent) { if (p.kind === 'work') beepStart(); else if (p.kind === 'rest') beepRest(); }
+  el.dataset.kind = p.kind;
+  const nw = nextWork(i + 1), work = p.kind === 'work', ref = work ? p : nw;
+  $('t-phase').textContent = ''; $('t-ex').textContent = p.title; $('t-next').textContent = '';
+  $('t-set').textContent = ref ? ref.setText : '';
+  showSegs(ref, ref ? ref.segI : 0, work ? p.segI : -1);
+  // velikost številke: prostor mora ostati tudi za napoved naslednje vaje, ki se pokaže na polovici
+  const widest = clockFmt(p.dur); let cap = Infinity;
+  if (work && nw && nw.names) { showRows(nw, 'Sledi'); cap = fitSize(widest); }
+  if (work) showRows(p, 'Zdaj'); else showRows(nw, 'Sledi');
+  T.fitText = widest; T.fitCap = cap; const size = Math.min(cap, fitSize(widest)); $('t-clock').style.fontSize = size + 'px';
+  tick();
+}
+function tick() {
+  if (!T.running) return;
+  const rem = T.endAt - Date.now();
+  if (rem <= 0) {
+    // če je aplikacija spala, preskoči vse faze, ki so medtem v celoti minile
+    let over = -rem, i = T.idx + 1;
+    while (i < T.seq.length && over >= T.seq[i].dur * 1000) { over -= T.seq[i].dur * 1000; i++; }
+    if (i >= T.seq.length) finish(); else startPhase(i, over, over > 1500);
+    return;
+  }
+  T.remMs = rem; paint();
+}
+function paint() {
+  const sec = Math.ceil(T.remMs / 1000), cur = T.seq[T.idx];
+  if (sec !== T.lastSec) {
+    if (T.running && T.lastSec !== null && cur.kind === 'work' && cur.side && cur.dur >= 10 && sec === Math.floor(cur.dur / 2)) halfCue();
+    // pred začetkom vaje (konec odmora ali priprave) pisk pri 2 in 1; ob koncu vaje ni odštevalnih piskov, samo pisk za konec
+    if (T.running && cur.kind !== 'work' && sec <= 2 && sec >= 1 && (T.lastSec !== null || cur.dur <= 2)) beepShort();
+    if (cur.kind === 'work' && cur.dur >= 10 && sec <= Math.floor(cur.dur / 2) && !T.preview) { // napoved naslednje vaje od polovice naprej
+      T.preview = true; const nw = nextWork(T.idx + 1); if (nw && nw.names) showRows(nw, 'Sledi');
+    }
+    T.lastSec = sec;
+    $('t-clock').textContent = clockFmt(sec);
+    $('t-clock').classList.toggle('last3', sec <= 3 && T.running);
+    let left = T.remMs / 1000; for (let i = T.idx + 1; i < T.seq.length; i++) left += T.seq[i].dur;
+    $('t-total').textContent = 'Še ' + fmt(left);
+  }
+  let done = 0; for (let i = 0; i < T.idx; i++) done += T.seq[i].dur;
+  done += cur.dur - T.remMs / 1000;
+  $('t-bar').style.width = (100 * done / T.total).toFixed(2) + '%';
+}
+function run() {
+  audio(); T.running = true; el.classList.remove('paused'); $('t-go').textContent = 'Pavza';
+  clearInterval(T.iv); T.iv = setInterval(tick, 100); wake(true);
+}
+function pause() {
+  T.running = false; T.remMs = Math.max(0, T.endAt - Date.now());
+  clearInterval(T.iv); el.classList.add('paused'); $('t-go').textContent = 'Nadaljuj';
+  $('t-clock').classList.remove('last3'); wake(false);
+}
+function finish() {
+  T.running = false; clearInterval(T.iv); T.idx = T.seq.length; beepDone(); wake(false); disarmExit();
+  el.dataset.kind = 'done'; el.classList.remove('paused'); showRows(null); showSegs(null);
+  $('t-phase').textContent = 'Konec'; $('t-ex').textContent = 'Odlično opravljeno!';
+  $('t-clock').textContent = '✓'; $('t-clock').classList.remove('last3');
+  $('t-set').textContent = ''; $('t-total').textContent = 'Skupaj ' + fmt(T.total - T.seq[0].dur);
+  $('t-next').textContent = ''; $('t-bar').style.width = '100%'; $('t-go').textContent = 'Ponovi'; T.fitCap = 0; fitClock('✓');
+}
+function toggle() {
+  if (T.idx < 0) { run(); startPhase(0); }
+  else if (T.idx >= T.seq.length) { T.idx = -1; renderIdle(); }
+  else if (T.running) pause();
+  else { T.endAt = Date.now() + T.remMs; run(); }
+}
+function jump(d) {
+  if (T.idx < 0 || T.idx >= T.seq.length) return;
+  let i = T.idx + d;
+  if (d < 0 && T.seq[T.idx].dur * 1000 - T.remMs > 2000) i = T.idx; // najprej ponovi trenutno fazo
+  if (i < 0) i = 0;
+  if (i >= T.seq.length) { finish(); return; }
+  const was = T.running; T.running = true; startPhase(i, 0, !was); T.running = was;
+  if (!was) { T.remMs = T.seq[i].dur * 1000; T.lastSec = null; paint(); }
+}
+function exitTimer() { T.running = false; clearInterval(T.iv); wake(false); disarmExit(); show('home'); }
+
+/* Zaščita: »Končaj« sredi vadbe zahteva potrditev z drugim dotikom. */
+let exitArmed = false, exitTimerId = null;
+function disarmExit() { exitArmed = false; clearTimeout(exitTimerId); $('t-exit').textContent = '✕ Končaj'; $('t-exit').classList.remove('armed'); }
+function askExit() {
+  if (T.idx < 0 || T.idx >= T.seq.length || exitArmed) { exitTimer(); return; }
+  exitArmed = true; $('t-exit').textContent = 'Res končaj?'; $('t-exit').classList.add('armed');
+  clearTimeout(exitTimerId); exitTimerId = setTimeout(disarmExit, 4000);
+}
+
+/* Zanesljivost: zaslon ostane prižgan; po vrnitvi iz ozadja se čas ujame in pokaže opozorilo. */
+async function wake(on) {
+  try {
+    if (on && navigator.wakeLock && !T.lock) { T.lock = await navigator.wakeLock.request('screen'); T.lock.addEventListener('release', () => { T.lock = null; }); }
+    else if (!on && T.lock) { await T.lock.release(); T.lock = null; }
+  } catch (e) { T.lock = null; }
+}
+let toastId = null;
+function toast(text) { const t = $('t-toast'); t.textContent = text; t.hidden = false; clearTimeout(toastId); toastId = setTimeout(() => { t.hidden = true; }, 7000); }
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { T.hiddenAt = T.running ? Date.now() : 0; return; }
+  if (!T.running) return;
+  const away = T.hiddenAt ? Date.now() - T.hiddenAt : 0; T.hiddenAt = 0;
+  audio(); wake(true); tick();
+  if (away > 3000 && !el.hidden) toast('Aplikacija je bila ' + fmt(away / 1000) + ' v ozadju. Piski se medtem morda niso slišali, čas pa je tekel naprej.');
+});
+
+$('t-go').onclick = toggle;
+$('t-skip').onclick = () => jump(1);
+$('t-prev').onclick = () => jump(-1);
+$('t-exit').onclick = askExit;
+document.addEventListener('keydown', e => {
+  if (el.hidden) return;
+  if (e.code === 'Space' || e.key === 'Enter') { if (e.target.tagName === 'BUTTON' && e.target.id !== 't-go') return; e.preventDefault(); toggle(); }
+  else if (e.key === 'ArrowRight') jump(1);
+  else if (e.key === 'ArrowLeft') jump(-1);
+  else if (e.key === 'Escape') askExit();
+});
+
+renderList();
+</script>
+<script>if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});</script>
+</body>
+</html>
